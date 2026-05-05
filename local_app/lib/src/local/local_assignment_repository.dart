@@ -7,6 +7,7 @@ import '../models/assignment.dart';
 class LocalAssignmentRepository {
   static const _assignmentsKey = 'local_assignments';
   static const _lastSyncKey = 'local_last_sync_at';
+  static const _completedIdsKey = 'local_hidden_completed_assignment_ids';
 
   Future<List<Assignment>> loadAssignments() async {
     final prefs = await SharedPreferences.getInstance();
@@ -15,16 +16,28 @@ class LocalAssignmentRepository {
       return [];
     }
     final data = jsonDecode(raw) as List<dynamic>;
-    return data
+    final assignments = data
         .map((item) => Assignment.fromJson(item as Map<String, dynamic>))
-        .where((assignment) => !_isCompletedPeerReview(assignment))
+        .toList();
+    await _migrateCompletedAssignments(prefs, assignments);
+    final hiddenCompletedIds = _loadCompletedIds(prefs);
+    return assignments
+        .where((assignment) =>
+            !assignment.isCompleted &&
+            !hiddenCompletedIds.contains(assignment.id) &&
+            !_isCompletedPeerReview(assignment))
         .toList();
   }
 
   Future<List<Assignment>> mergeAndSave(List<Assignment> incoming) async {
-    final existing = await loadAssignments();
-    final merged = mergeAssignments(existing, incoming);
     final prefs = await SharedPreferences.getInstance();
+    final existing = await loadAssignments();
+    final hiddenCompletedIds = _loadCompletedIds(prefs);
+    final merged = mergeAssignments(
+      existing,
+      incoming,
+      hiddenCompletedIds: hiddenCompletedIds,
+    );
     await prefs.setString(_assignmentsKey,
         jsonEncode(merged.map((item) => item.toJson()).toList()));
     await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
@@ -33,18 +46,28 @@ class LocalAssignmentRepository {
 
   Future<List<Assignment>> updateCompletion(
       String assignmentId, bool completed) async {
-    final assignments = await loadAssignments();
-    final updated = assignments
-        .map((assignment) => assignment.id == assignmentId
-            ? assignment.copyWith(
-                status:
-                    completed ? 'completed' : _statusFor(assignment.deadlineAt),
-                completedAt: completed ? DateTime.now() : null,
-                clearCompletedAt: !completed,
-              )
-            : assignment)
-        .toList();
     final prefs = await SharedPreferences.getInstance();
+    final hiddenCompletedIds = _loadCompletedIds(prefs);
+    if (completed) {
+      hiddenCompletedIds.add(assignmentId);
+    } else {
+      hiddenCompletedIds.remove(assignmentId);
+    }
+    await _saveCompletedIds(prefs, hiddenCompletedIds);
+
+    final assignments = await loadAssignments();
+    final updated = completed
+        ? assignments
+            .where((assignment) => assignment.id != assignmentId)
+            .toList()
+        : assignments
+            .map((assignment) => assignment.id == assignmentId
+                ? assignment.copyWith(
+                    status: _statusFor(assignment.deadlineAt),
+                    clearCompletedAt: true,
+                  )
+                : assignment)
+            .toList();
     await prefs.setString(_assignmentsKey,
         jsonEncode(updated.map((item) => item.toJson()).toList()));
     return updated;
@@ -60,29 +83,58 @@ class LocalAssignmentRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_assignmentsKey);
     await prefs.remove(_lastSyncKey);
+    await prefs.remove(_completedIdsKey);
   }
 
   static List<Assignment> mergeAssignments(
-      List<Assignment> existing, List<Assignment> incoming) {
-    final oldById = {
-      for (final assignment in existing
-          .where((assignment) => !_isCompletedPeerReview(assignment)))
-        assignment.id: assignment,
+    List<Assignment> existing,
+    List<Assignment> incoming, {
+    Set<String> hiddenCompletedIds = const {},
+  }) {
+    final effectiveHiddenCompletedIds = {
+      ...hiddenCompletedIds,
+      for (final assignment in existing.where((item) => item.isCompleted))
+        assignment.id,
     };
     final byId = <String, Assignment>{};
     for (final assignment in incoming) {
-      if (_isCompletedPeerReview(assignment)) {
+      if (effectiveHiddenCompletedIds.contains(assignment.id) ||
+          _isCompletedPeerReview(assignment)) {
         continue;
       }
-      final old = oldById[assignment.id];
-      byId[assignment.id] = old?.isCompleted == true
-          ? assignment.copyWith(
-              status: 'completed', completedAt: old!.completedAt)
-          : assignment.copyWith(status: _statusFor(assignment.deadlineAt));
+      byId[assignment.id] = assignment.copyWith(
+        status: _statusFor(assignment.deadlineAt),
+        clearCompletedAt: true,
+      );
     }
     final merged = byId.values.toList()
       ..sort((a, b) => a.deadlineAt.compareTo(b.deadlineAt));
     return merged;
+  }
+
+  static Set<String> _loadCompletedIds(SharedPreferences prefs) {
+    return (prefs.getStringList(_completedIdsKey) ?? const <String>[])
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  static Future<void> _saveCompletedIds(
+      SharedPreferences prefs, Set<String> ids) {
+    final sorted = ids.toList()..sort();
+    return prefs.setStringList(_completedIdsKey, sorted);
+  }
+
+  static Future<void> _migrateCompletedAssignments(
+      SharedPreferences prefs, List<Assignment> assignments) async {
+    final completedIds = assignments
+        .where((assignment) => assignment.isCompleted)
+        .map((assignment) => assignment.id)
+        .toSet();
+    if (completedIds.isEmpty) {
+      return;
+    }
+    final hiddenCompletedIds = _loadCompletedIds(prefs)..addAll(completedIds);
+    await _saveCompletedIds(prefs, hiddenCompletedIds);
   }
 
   static String _statusFor(DateTime deadlineAt) {
@@ -98,6 +150,6 @@ class LocalAssignmentRepository {
     if (RegExp(r'(未完成|未提交|待互评|待评价|进行中)').hasMatch(text)) {
       return false;
     }
-    return RegExp(r'(已完成|已提交|已评价|评价完成|互评完成|completed)').hasMatch(text);
+    return RegExp(r'(已互评|已完成|已提交|已评价|评价完成|互评完成|completed)').hasMatch(text);
   }
 }

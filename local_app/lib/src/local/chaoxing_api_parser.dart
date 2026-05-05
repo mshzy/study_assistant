@@ -160,7 +160,7 @@ class ChaoxingApiParser {
     if (RegExp(r'(未完成|未提交|待互评|待评价|进行中)').hasMatch(combined)) {
       return false;
     }
-    if (RegExp(r'(已完成|已提交|已评价|评价完成|互评完成|完成)').hasMatch(combined)) {
+    if (RegExp(r'(已互评|已完成|已提交|已评价|评价完成|互评完成|完成)').hasMatch(combined)) {
       return true;
     }
     final status = _stringValue(

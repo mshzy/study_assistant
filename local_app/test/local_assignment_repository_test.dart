@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_assistant_mobile/src/local/local_assignment_repository.dart';
 import 'package:study_assistant_mobile/src/models/assignment.dart';
 
 void main() {
-  test('mergeAssignments keeps completion state when remote assignment changes',
+  test('mergeAssignments skips previously completed assignments when refreshed',
       () {
     final existing = Assignment(
       id: 'web:course-1:work-1',
@@ -28,10 +29,27 @@ void main() {
     final merged =
         LocalAssignmentRepository.mergeAssignments([existing], [incoming]);
 
-    expect(merged, hasLength(1));
-    expect(merged.first.title, '需求分析报告（更新）');
-    expect(merged.first.status, 'completed');
-    expect(merged.first.completedAt, existing.completedAt);
+    expect(merged, isEmpty);
+  });
+
+  test('mergeAssignments skips assignments hidden by manual completion', () {
+    final incoming = Assignment(
+      id: 'web:course-1:work-1',
+      courseName: '软件工程',
+      title: '需求分析报告',
+      deadlineAt: DateTime.parse('2026-05-09T10:00:00.000Z'),
+      requirementsText: '提交 PDF',
+      status: 'pending',
+      lastSyncedAt: DateTime.parse('2026-05-05T11:00:00.000Z'),
+    );
+
+    final merged = LocalAssignmentRepository.mergeAssignments(
+      [],
+      [incoming],
+      hiddenCompletedIds: {'web:course-1:work-1'},
+    );
+
+    expect(merged, isEmpty);
   });
 
   test(
@@ -105,7 +123,7 @@ void main() {
       courseName: '大学英语',
       title: '互评作业',
       deadlineAt: DateTime.parse('2026-05-09T10:00:00.000Z'),
-      requirementsText: '互评作业 已完成',
+      requirementsText: '互评作业 已互评',
       status: 'pending',
       lastSyncedAt: DateTime.parse('2026-05-05T11:00:00.000Z'),
     );
@@ -114,5 +132,32 @@ void main() {
         LocalAssignmentRepository.mergeAssignments([], [completedPeerReview]);
 
     expect(merged, isEmpty);
+  });
+
+  test('updateCompletion hides assignment across later syncs', () async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = LocalAssignmentRepository();
+    final assignment = Assignment(
+      id: 'cx:stu-work:work-1',
+      courseName: '大学英语',
+      title: '章节作业',
+      deadlineAt: DateTime.parse('2026-05-09T10:00:00.000Z'),
+      requirementsText: '提交 PDF',
+      status: 'pending',
+      lastSyncedAt: DateTime.parse('2026-05-05T11:00:00.000Z'),
+    );
+
+    await repository.mergeAndSave([assignment]);
+    final afterComplete =
+        await repository.updateCompletion(assignment.id, true);
+    final afterRefresh = await repository.mergeAndSave([
+      assignment.copyWith(
+        lastSyncedAt: DateTime.parse('2026-05-05T12:00:00.000Z'),
+      )
+    ]);
+
+    expect(afterComplete, isEmpty);
+    expect(afterRefresh, isEmpty);
+    expect(await repository.loadAssignments(), isEmpty);
   });
 }

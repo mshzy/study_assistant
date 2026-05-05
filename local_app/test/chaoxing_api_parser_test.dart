@@ -78,7 +78,7 @@ void main() {
               'nameOne': '互评作业',
               'activeType': 47,
               'status': 2,
-              'statusName': '已完成',
+              'statusName': '已互评',
               'endTime': '2026-05-07 08:00:00'
             },
             {

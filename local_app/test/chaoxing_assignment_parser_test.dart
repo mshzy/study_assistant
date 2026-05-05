@@ -66,7 +66,7 @@ void main() {
         <li data="https://mooc1-api.chaoxing.com/work/doHomeWorkNew?courseId=111&clazzId=222&taskrefId=333">
           <p>互评作业</p>
           <span>大学英语</span>
-          <span>已完成</span>
+          <span>已互评</span>
           <span>截止时间：2026-05-08 18:00</span>
         </li>
         <li data="https://mooc1-api.chaoxing.com/work/doHomeWorkNew?courseId=111&clazzId=222&taskrefId=334">

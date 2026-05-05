@@ -213,7 +213,7 @@ class ChaoxingAssignmentParser {
     if (RegExp(r'(未完成|未提交|待互评|待评价|进行中)').hasMatch(text)) {
       return false;
     }
-    return RegExp(r'(已完成|已提交|已评价|评价完成|互评完成|完成)').hasMatch(text);
+    return RegExp(r'(已互评|已完成|已提交|已评价|评价完成|互评完成|完成)').hasMatch(text);
   }
 
   static String _extractRequirement(String block, String cleanText) {
