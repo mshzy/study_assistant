@@ -5,15 +5,8 @@
 ## 项目信息
 
 - 版权归 HY 所有
-- 微信：HY676-
 - GitHub：https://github.com/mshzy/study_assistant
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
-
-## 当前开源内容
-
-本仓库只提交本地版 App：`local_app`。
-
-服务器版资料保留在本机 `server_version` 目录中，用于后续开发“后端 + 连接服务器的 App”，但该目录已加入 `.gitignore`，不会上传到 GitHub。
 
 ## 开源协议
 
