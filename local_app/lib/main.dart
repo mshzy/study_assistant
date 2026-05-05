@@ -81,7 +81,7 @@ class StudyAssistantApp extends StatelessWidget {
     );
 
     return MaterialApp.router(
-      title: '作业提醒',
+      title: '学习通作业提醒',
       debugShowCheckedModeBanner: false,
       theme: StudyAssistantTheme.light,
       routerConfig: router,

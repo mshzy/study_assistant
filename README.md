@@ -1,4 +1,4 @@
-﻿# 作业提醒
+# 学习通作业提醒
 
 学习通作业提醒本地版 Flutter App。用户使用学习通账号密码登录后，App 在本机同步未完成作业、提醒截止时间，并支持手动标记完成。
 
@@ -6,6 +6,7 @@
 
 - 版权归 HY 所有
 - GitHub：https://github.com/mshzy/study_assistant
+- 当前版本：1.0.0
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
 
 ## 开源协议

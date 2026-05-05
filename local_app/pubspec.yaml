@@ -1,7 +1,7 @@
 name: study_assistant_mobile
-description: A cross-platform study assistant for Chaoxing assignments, reminders, and home-screen widgets.
+description: 学习通作业提醒本地版 App。
 publish_to: "none"
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
