@@ -5,7 +5,6 @@
 ## 项目信息
 
 - 版权归 HY 所有
-- 微信：HY676-
 - GitHub：https://github.com/mshzy/study_assistant
 - 当前版本：1.0.3
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
@@ -26,7 +25,7 @@
 - 支持本地系统通知，包含开机后恢复已安排提醒。
 - 支持 Android 桌面小组件，显示近期待完成作业、课程名和剩余时间。
 - 小组件点击可直接进入对应作业详情；旧版 deep link 也已兼容。
-- “关于应用”展示版权、微信、开源协议和 GitHub 源码入口。
+- “关于应用”展示版权、开源协议和 GitHub 源码入口。
 
 ## 隐私说明
 
