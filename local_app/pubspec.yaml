@@ -1,7 +1,7 @@
 name: study_assistant_mobile
 description: 学习通作业提醒本地版 App。
 publish_to: "none"
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -17,6 +17,7 @@ dependencies:
   home_widget: ^0.7.0
   intl: ^0.20.1
   shared_preferences: ^2.3.5
+  timezone: ^0.10.1
   webview_flutter: ^4.10.0
 
 dev_dependencies:

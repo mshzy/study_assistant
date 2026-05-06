@@ -43,10 +43,20 @@ class AssignmentWidgetProvider : AppWidgetProvider() {
         } else {
             "studyassistant://assignments"
         }
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).setPackage(context.packageName)
+        val intent = Intent(Intent.ACTION_VIEW, normalizeDeepLink(target)).setPackage(context.packageName)
         val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(R.id.assignment_widget_root, pendingIntent)
         return views
+    }
+
+    private fun normalizeDeepLink(target: String): Uri {
+        if (target.startsWith("studyassistant://assignments/")) {
+            return Uri.parse(target.replaceFirst("studyassistant://assignments/", "studyassistant:///assignments/"))
+        }
+        if (target == "studyassistant://assignments") {
+            return Uri.parse("studyassistant:///assignments")
+        }
+        return Uri.parse(target)
     }
 
     private fun loadItems(context: Context): JSONArray {

@@ -10,4 +10,12 @@ void main() {
 
     expect(manifest, contains('android.permission.INTERNET'));
   });
+
+  test('Android manifest declares scheduled notification boot recovery', () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+
+    expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
+    expect(manifest, contains('ScheduledNotificationBootReceiver'));
+  });
 }

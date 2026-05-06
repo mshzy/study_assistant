@@ -5,6 +5,7 @@ import '../local/chaoxing_local_client.dart';
 import '../local/local_assignment_repository.dart';
 import '../models/assignment.dart';
 import 'local_notification_service.dart';
+import 'reminder_rule_store.dart';
 import 'secure_session_store.dart';
 import 'widget_snapshot_service.dart';
 
@@ -15,14 +16,17 @@ class AssignmentStore extends ChangeNotifier {
     required this.widgetSnapshotService,
     LocalAssignmentRepository? repository,
     ChaoxingLocalClient? chaoxingClient,
+    ReminderRuleStore? reminderRuleStore,
   })  : repository = repository ?? LocalAssignmentRepository(),
-        chaoxingClient = chaoxingClient ?? ChaoxingLocalClient();
+        chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
+        reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
 
   final SecureSessionStore sessionStore;
   final LocalNotificationService notificationService;
   final WidgetSnapshotService widgetSnapshotService;
   final LocalAssignmentRepository repository;
   final ChaoxingLocalClient chaoxingClient;
+  final ReminderRuleStore reminderRuleStore;
 
   bool _authenticated = false;
   bool _loading = false;
@@ -30,6 +34,7 @@ class AssignmentStore extends ChangeNotifier {
   String? _error;
   String? _account;
   DateTime? _lastSyncAt;
+  List<int> _reminderOffsetsMinutes = ReminderRuleStore.defaultOffsetsMinutes;
   final List<Assignment> _assignments = [];
 
   bool get isAuthenticated => _authenticated;
@@ -38,6 +43,8 @@ class AssignmentStore extends ChangeNotifier {
   String? get error => _error;
   String? get account => _account;
   DateTime? get lastSyncAt => _lastSyncAt;
+  List<int> get reminderOffsetsMinutes =>
+      List.unmodifiable(_reminderOffsetsMinutes);
   List<Assignment> get assignments => List.unmodifiable(_assignments);
   List<Assignment> get visibleAssignments =>
       _assignments.where((item) => !item.isCompleted).toList(growable: false);
@@ -60,6 +67,7 @@ class AssignmentStore extends ChangeNotifier {
   Future<void> restoreSession() async {
     _account = await sessionStore.readChaoxingAccount();
     _authenticated = _account != null;
+    _reminderOffsetsMinutes = await reminderRuleStore.loadOffsetsMinutes();
     _assignments
       ..clear()
       ..addAll(await repository.loadAssignments());
@@ -143,12 +151,20 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   Future<void> saveReminderRule(List<int> offsetsMinutes) async {
-    await notificationService.rescheduleAssignments(_assignments);
+    final normalized =
+        await reminderRuleStore.saveOffsetsMinutes(offsetsMinutes);
+    _reminderOffsetsMinutes = normalized;
+    await notificationService.rescheduleAssignments(
+      _assignments,
+      offsetsMinutes: _reminderOffsetsMinutes,
+    );
+    notifyListeners();
   }
 
   Future<void> logout() async {
     await sessionStore.clear();
     await repository.clear();
+    await reminderRuleStore.clear();
     _authenticated = false;
     _account = null;
     _assignments.clear();
@@ -165,7 +181,10 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   Future<void> _afterAssignmentsChanged() async {
-    await notificationService.rescheduleAssignments(_assignments);
+    await notificationService.rescheduleAssignments(
+      _assignments,
+      offsetsMinutes: _reminderOffsetsMinutes,
+    );
     await widgetSnapshotService.saveAssignments(_assignments);
   }
 

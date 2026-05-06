@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'src/app/app_deep_links.dart';
 import 'src/app/app_shell.dart';
 import 'src/features/assignment_detail_screen.dart';
 import 'src/features/assignment_list_screen.dart';
@@ -68,6 +69,12 @@ class StudyAssistantApp extends StatelessWidget {
         ),
       ],
       redirect: (_, state) {
+        final normalizedLocation =
+            AppDeepLinks.normalizeIncomingLocation(state.uri);
+        if (normalizedLocation != null) {
+          return normalizedLocation;
+        }
+
         final loggedIn = store.isAuthenticated;
         final loggingIn = state.matchedLocation == '/login';
         if (!loggedIn && !loggingIn) {

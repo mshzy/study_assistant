@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:home_widget/home_widget.dart';
 
+import '../app/app_deep_links.dart';
 import '../models/widget_snapshot.dart';
 import '../models/assignment.dart';
 
@@ -30,7 +31,7 @@ class WidgetSnapshotService {
             deadlineAt: assignment.deadlineAt,
             remainingText: _remainingText(assignment.deadlineAt, now),
             urgencyLevel: _urgencyLevel(assignment.deadlineAt, now),
-            deepLinkUrl: 'studyassistant://assignments/${assignment.id}',
+            deepLinkUrl: AppDeepLinks.assignmentUri(assignment.id),
           ),
         )
         .toList();
