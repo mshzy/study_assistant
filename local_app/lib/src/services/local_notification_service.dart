@@ -9,6 +9,19 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
+  static String formatDeadlineRemainingText(int offsetMinutes) {
+    final safeMinutes = offsetMinutes < 0 ? 0 : offsetMinutes;
+    final days = safeMinutes ~/ 1440;
+    final hours = (safeMinutes % 1440) ~/ 60;
+    final minutes = safeMinutes % 60;
+    final parts = <String>[
+      if (days > 0) '$days 天',
+      if (hours > 0) '$hours 小时',
+      if (minutes > 0 || (days == 0 && hours == 0)) '$minutes 分钟',
+    ];
+    return '还剩 ${parts.join(' ')}截止';
+  }
+
   Future<void> initializeSafely() async {
     try {
       await initialize();
@@ -19,6 +32,7 @@ class LocalNotificationService {
 
   Future<void> initialize() async {
     timezone_data.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
     const android = AndroidInitializationSettings('@drawable/app_icon');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(
@@ -26,8 +40,7 @@ class LocalNotificationService {
     );
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
             'assignment_deadlines',
@@ -37,6 +50,7 @@ class LocalNotificationService {
           ),
         );
     await _requestNotificationPermission();
+    await _requestExactAlarmPermission();
   }
 
   Future<void> rescheduleAssignments(
@@ -61,14 +75,19 @@ class LocalNotificationService {
   Future<void> _requestNotificationPermission() async {
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
     await _plugin
         .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
+            IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
+  }
+
+  Future<void> _requestExactAlarmPermission() async {
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestExactAlarmsPermission();
   }
 
   Future<void> _scheduleReminder(
@@ -83,33 +102,58 @@ class LocalNotificationService {
       return;
     }
 
-    await _plugin.zonedSchedule(
-      Object.hash(assignment.id, offsetMinutes),
-      '作业即将截止',
-      '${assignment.courseName} · ${assignment.title}，${_offsetLabel(offsetMinutes)}截止',
-      tz.TZDateTime.from(notifyAt, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'assignment_deadlines',
-          '作业截止提醒',
-          importance: Importance.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'studyassistant://assignments/${assignment.id}',
+    await _zonedSchedule(
+      assignment,
+      offsetMinutes,
+      notifyAt,
+      AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
-  String _offsetLabel(int offsetMinutes) {
-    if (offsetMinutes % 1440 == 0) {
-      return '提前 ${offsetMinutes ~/ 1440} 天';
+  Future<void> _zonedSchedule(
+    Assignment assignment,
+    int offsetMinutes,
+    DateTime notifyAt,
+    AndroidScheduleMode scheduleMode,
+  ) async {
+    try {
+      await _plugin.zonedSchedule(
+        Object.hash(assignment.id, offsetMinutes),
+        '作业即将截止',
+        '${assignment.courseName} · ${assignment.title}，${formatDeadlineRemainingText(offsetMinutes)}',
+        tz.TZDateTime.from(notifyAt, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'assignment_deadlines',
+            '作业截止提醒',
+            importance: Importance.high,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.reminder,
+            visibility: NotificationVisibility.public,
+            ticker: '作业即将截止',
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBanner: true,
+            presentList: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
+          ),
+        ),
+        androidScheduleMode: scheduleMode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'studyassistant://assignments/${assignment.id}',
+      );
+    } catch (_) {
+      if (scheduleMode == AndroidScheduleMode.exactAllowWhileIdle) {
+        await _zonedSchedule(
+          assignment,
+          offsetMinutes,
+          notifyAt,
+          AndroidScheduleMode.inexactAllowWhileIdle,
+        );
+      }
     }
-    if (offsetMinutes % 60 == 0) {
-      return '提前 ${offsetMinutes ~/ 60} 小时';
-    }
-    return '提前 $offsetMinutes 分钟';
   }
 }

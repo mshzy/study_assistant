@@ -33,10 +33,37 @@ Future<void> main() async {
   runApp(StudyAssistantApp(store: assignmentStore));
 }
 
-class StudyAssistantApp extends StatelessWidget {
+class StudyAssistantApp extends StatefulWidget {
   const StudyAssistantApp({super.key, required this.store});
 
   final AssignmentStore store;
+
+  @override
+  State<StudyAssistantApp> createState() => _StudyAssistantAppState();
+}
+
+class _StudyAssistantAppState extends State<StudyAssistantApp>
+    with WidgetsBindingObserver {
+  AssignmentStore get store => widget.store;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      store.runDueAutoSync();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

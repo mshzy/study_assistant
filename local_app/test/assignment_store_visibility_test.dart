@@ -12,6 +12,7 @@ void main() {
       notificationService: _NoopNotificationService(),
       widgetSnapshotService: _NoopWidgetSnapshotService(),
     );
+    addTearDown(store.dispose);
     store.replaceAssignmentsForTest([
       _assignment(id: 'pending', status: 'pending'),
       _assignment(id: 'overdue', status: 'overdue'),

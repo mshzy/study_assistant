@@ -29,7 +29,9 @@ class AssignmentListScreen extends StatelessWidget {
                       children: [
                         Text(
                           '待完成作业',
-                          style: Theme.of(context).textTheme.headlineMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         Text(
@@ -130,7 +132,9 @@ class _AssignmentCard extends StatelessWidget {
                     children: [
                       Text(
                         assignment.title,
-                        style: Theme.of(context).textTheme.titleMedium
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),

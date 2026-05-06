@@ -17,6 +17,7 @@ void main() {
         notificationService: notificationService,
         widgetSnapshotService: _NoopWidgetSnapshotService(),
       );
+      addTearDown(store.dispose);
       store.replaceAssignmentsForTest([_assignment(id: 'work-1')]);
 
       await store.saveReminderRule([30, 1440, 30, 5]);
@@ -29,6 +30,7 @@ void main() {
         notificationService: _RecordingNotificationService(),
         widgetSnapshotService: _NoopWidgetSnapshotService(),
       );
+      addTearDown(restored.dispose);
       await restored.restoreSession();
 
       expect(restored.reminderOffsetsMinutes, [1440, 30, 5]);

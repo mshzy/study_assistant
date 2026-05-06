@@ -38,16 +38,16 @@ class Assignment {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'courseName': courseName,
-    'title': title,
-    'deadlineAt': deadlineAt.toIso8601String(),
-    'requirementsText': requirementsText,
-    'status': status,
-    'submitUrl': submitUrl,
-    'completedAt': completedAt?.toIso8601String(),
-    'lastSyncedAt': lastSyncedAt.toIso8601String(),
-  };
+        'id': id,
+        'courseName': courseName,
+        'title': title,
+        'deadlineAt': deadlineAt.toIso8601String(),
+        'requirementsText': requirementsText,
+        'status': status,
+        'submitUrl': submitUrl,
+        'completedAt': completedAt?.toIso8601String(),
+        'lastSyncedAt': lastSyncedAt.toIso8601String(),
+      };
 
   Assignment copyWith({
     String? id,

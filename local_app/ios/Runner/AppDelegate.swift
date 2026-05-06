@@ -29,6 +29,28 @@ import UIKit
         result(opened)
       }
     }
+    let permissionsChannel = FlutterMethodChannel(
+      name: "study_assistant/permissions",
+      binaryMessenger: controller!.binaryMessenger
+    )
+    permissionsChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "openNotificationSettings",
+        "openExactAlarmSettings",
+        "openLockScreenNotificationSettings",
+        "openBatterySettings",
+        "openAppSettings":
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+          result(false)
+          return
+        }
+        application.open(url, options: [:]) { opened in
+          result(opened)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

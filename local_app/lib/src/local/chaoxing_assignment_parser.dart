@@ -9,8 +9,7 @@ class ChaoxingAssignmentParser {
     DateTime? now,
   }) {
     final parsedAt = now ?? DateTime.now();
-    final courseName =
-        _firstMatch(html, [
+    final courseName = _firstMatch(html, [
           RegExp(
             r'class=["'
             '][^"'
@@ -47,10 +46,8 @@ class ChaoxingAssignmentParser {
       caseSensitive: false,
       dotAll: true,
     );
-    final blocks = itemRegex
-        .allMatches(html)
-        .map((match) => match.group(0)!)
-        .toList();
+    final blocks =
+        itemRegex.allMatches(html).map((match) => match.group(0)!).toList();
     final candidates = blocks.isEmpty ? <String>[html] : blocks;
 
     final seen = <String>{};
@@ -88,8 +85,7 @@ class ChaoxingAssignmentParser {
       return null;
     }
 
-    final title =
-        _firstMatch(block, [
+    final title = _firstMatch(block, [
           RegExp(
             r'(?:data-title|title)=["'
             ']([^"'
@@ -114,8 +110,7 @@ class ChaoxingAssignmentParser {
     }
 
     final sourceUrl = _extractSourceUrl(block);
-    final sourceId =
-        _extractSourceId(block, sourceUrl) ??
+    final sourceId = _extractSourceId(block, sourceUrl) ??
         '${_decodeEntities(_stripTags(title))}:${deadline.rawText}';
     final blockCourseName = _extractBlockCourseName(block, courseName);
 
@@ -357,17 +352,16 @@ class ChaoxingAssignmentParser {
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (match) {
-          final codePoint = int.tryParse(match.group(1)!, radix: 16);
-          return codePoint == null
-              ? match.group(0)!
-              : String.fromCharCode(codePoint);
-        })
-        .replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
-          final codePoint = int.tryParse(match.group(1)!);
-          return codePoint == null
-              ? match.group(0)!
-              : String.fromCharCode(codePoint);
-        });
+      final codePoint = int.tryParse(match.group(1)!, radix: 16);
+      return codePoint == null
+          ? match.group(0)!
+          : String.fromCharCode(codePoint);
+    }).replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+      final codePoint = int.tryParse(match.group(1)!);
+      return codePoint == null
+          ? match.group(0)!
+          : String.fromCharCode(codePoint);
+    });
   }
 }
 

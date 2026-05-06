@@ -18,8 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canLogin =
-        _account.text.trim().isNotEmpty &&
+    final canLogin = _account.text.trim().isNotEmpty &&
         _password.text.isNotEmpty &&
         _accepted &&
         !widget.store.isLoading;
@@ -33,9 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               '用户登录',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF17211D),
-              ),
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF17211D),
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -75,10 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 onPressed: canLogin
                     ? () => widget.store.loginChaoxing(
-                        account: _account.text,
-                        password: _password.text,
-                        agreementAccepted: _accepted,
-                      )
+                          account: _account.text,
+                          password: _password.text,
+                          agreementAccepted: _accepted,
+                        )
                     : null,
                 child: widget.store.isLoading
                     ? const SizedBox(

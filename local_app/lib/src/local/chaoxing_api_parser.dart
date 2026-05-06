@@ -21,8 +21,7 @@ class ChaoxingApiParser {
       return [];
     }
 
-    final channels =
-        _asList(roots['channelList']) ??
+    final channels = _asList(roots['channelList']) ??
         _asList(roots['data']) ??
         _asList(roots['courses']) ??
         const [];
@@ -33,12 +32,10 @@ class ChaoxingApiParser {
         continue;
       }
       final content = _asMap(channel['content']) ?? channel;
-      final courseData =
-          _firstMapFrom(content['course']) ??
+      final courseData = _firstMapFrom(content['course']) ??
           _asMap(content['course']) ??
           content;
-      final clazzData =
-          _firstMapFrom(content['clazz']) ??
+      final clazzData = _firstMapFrom(content['clazz']) ??
           _asMap(content['clazz']) ??
           content;
 
@@ -89,8 +86,7 @@ class ChaoxingApiParser {
     }
 
     final data = _asMap(root['data']) ?? root;
-    final activities =
-        _asList(data['activeList']) ??
+    final activities = _asList(data['activeList']) ??
         _asList(data['list']) ??
         _asList(data['activities']) ??
         const [];
@@ -123,8 +119,7 @@ class ChaoxingApiParser {
           courseName: course.courseName,
           title: title,
           deadlineAt: deadline,
-          requirementsText:
-              _stringValue(
+          requirementsText: _stringValue(
                 activity['description'] ??
                     activity['content'] ??
                     activity['remark'],
@@ -143,8 +138,7 @@ class ChaoxingApiParser {
     final type = _stringValue(
       activity['activeType'] ?? activity['type'] ?? activity['activeTypeName'],
     );
-    final name =
-        _stringValue(
+    final name = _stringValue(
           activity['nameOne'] ??
               activity['name'] ??
               activity['title'] ??

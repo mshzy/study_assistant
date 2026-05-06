@@ -31,14 +31,13 @@ class ReminderRuleStore {
   }
 
   static List<int> normalizeOffsets(List<int>? offsetsMinutes) {
-    final values =
-        (offsetsMinutes == null || offsetsMinutes.isEmpty
-                ? defaultOffsetsMinutes
-                : offsetsMinutes)
-            .where((item) => item > 0)
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a));
+    final values = (offsetsMinutes == null || offsetsMinutes.isEmpty
+            ? defaultOffsetsMinutes
+            : offsetsMinutes)
+        .where((item) => item > 0)
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
     return values;
   }
 }

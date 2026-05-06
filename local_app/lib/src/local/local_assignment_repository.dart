@@ -64,18 +64,18 @@ class LocalAssignmentRepository {
     final assignments = await loadAssignments();
     final updated = completed
         ? assignments
-              .where((assignment) => assignment.id != assignmentId)
-              .toList()
+            .where((assignment) => assignment.id != assignmentId)
+            .toList()
         : assignments
-              .map(
-                (assignment) => assignment.id == assignmentId
-                    ? assignment.copyWith(
-                        status: _statusFor(assignment.deadlineAt),
-                        clearCompletedAt: true,
-                      )
-                    : assignment,
-              )
-              .toList();
+            .map(
+              (assignment) => assignment.id == assignmentId
+                  ? assignment.copyWith(
+                      status: _statusFor(assignment.deadlineAt),
+                      clearCompletedAt: true,
+                    )
+                  : assignment,
+            )
+            .toList();
     await prefs.setString(
       _assignmentsKey,
       jsonEncode(updated.map((item) => item.toJson()).toList()),

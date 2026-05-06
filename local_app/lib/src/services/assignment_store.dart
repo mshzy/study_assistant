@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../local/chaoxing_assignment_parser.dart';
 import '../local/chaoxing_local_client.dart';
@@ -10,6 +13,9 @@ import 'secure_session_store.dart';
 import 'widget_snapshot_service.dart';
 
 class AssignmentStore extends ChangeNotifier {
+  static const defaultAutoSyncIntervalMinutes = 30;
+  static const _autoSyncIntervalKey = 'auto_sync_interval_minutes';
+
   AssignmentStore({
     required this.sessionStore,
     required this.notificationService,
@@ -17,9 +23,9 @@ class AssignmentStore extends ChangeNotifier {
     LocalAssignmentRepository? repository,
     ChaoxingLocalClient? chaoxingClient,
     ReminderRuleStore? reminderRuleStore,
-  }) : repository = repository ?? LocalAssignmentRepository(),
-       chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
-       reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
+  })  : repository = repository ?? LocalAssignmentRepository(),
+        chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
+        reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
 
   final SecureSessionStore sessionStore;
   final LocalNotificationService notificationService;
@@ -35,7 +41,10 @@ class AssignmentStore extends ChangeNotifier {
   String? _account;
   DateTime? _lastSyncAt;
   List<int> _reminderOffsetsMinutes = ReminderRuleStore.defaultOffsetsMinutes;
+  int _autoSyncIntervalMinutes = defaultAutoSyncIntervalMinutes;
   final List<Assignment> _assignments = [];
+  Timer? _autoSyncTimer;
+  bool _autoSyncRunning = false;
 
   bool get isAuthenticated => _authenticated;
   bool get isLoading => _loading;
@@ -43,18 +52,18 @@ class AssignmentStore extends ChangeNotifier {
   String? get error => _error;
   String? get account => _account;
   DateTime? get lastSyncAt => _lastSyncAt;
+  int get autoSyncIntervalMinutes => _autoSyncIntervalMinutes;
   List<int> get reminderOffsetsMinutes =>
       List.unmodifiable(_reminderOffsetsMinutes);
   List<Assignment> get assignments => List.unmodifiable(_assignments);
   List<Assignment> get visibleAssignments =>
       _assignments.where((item) => !item.isCompleted).toList(growable: false);
   Map<String, dynamic>? get syncStatus => {
-    'localOnly': true,
-    'lastSyncedAt': _lastSyncAt?.toIso8601String(),
-    'stale':
-        _lastSyncAt == null ||
-        DateTime.now().difference(_lastSyncAt!).inHours >= 24,
-  };
+        'localOnly': true,
+        'lastSyncedAt': _lastSyncAt?.toIso8601String(),
+        'stale': _lastSyncAt == null ||
+            DateTime.now().difference(_lastSyncAt!).inHours >= 24,
+      };
 
   Assignment? findAssignment(String assignmentId) {
     for (final assignment in _assignments) {
@@ -69,11 +78,13 @@ class AssignmentStore extends ChangeNotifier {
     _account = await sessionStore.readChaoxingAccount();
     _authenticated = _account != null;
     _reminderOffsetsMinutes = await reminderRuleStore.loadOffsetsMinutes();
+    _autoSyncIntervalMinutes = await _loadAutoSyncIntervalMinutes();
     _assignments
       ..clear()
       ..addAll(await repository.loadAssignments());
     _lastSyncAt = await repository.lastSyncAt();
     await _afterAssignmentsChanged();
+    _restartAutoSyncTimer();
     notifyListeners();
   }
 
@@ -102,19 +113,18 @@ class AssignmentStore extends ChangeNotifier {
       _account = account;
       _agreementAccepted = true;
       _authenticated = true;
-      await syncAssignments();
+      _restartAutoSyncTimer();
+      try {
+        await _syncAssignmentsBody(refreshSession: false);
+      } catch (error) {
+        _error = _friendlyError(error);
+      }
     });
   }
 
   Future<void> syncAssignments() async {
     await _run(() async {
-      final incoming = await chaoxingClient.fetchAssignments();
-      final merged = await repository.mergeAndSave(incoming);
-      _assignments
-        ..clear()
-        ..addAll(merged);
-      _lastSyncAt = await repository.lastSyncAt();
-      await _afterAssignmentsChanged();
+      await _syncAssignmentsBody();
     });
   }
 
@@ -169,6 +179,39 @@ class AssignmentStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> saveAutoSyncIntervalMinutes(int minutes) async {
+    final normalized = normalizeAutoSyncIntervalMinutes(minutes);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_autoSyncIntervalKey, normalized);
+    _autoSyncIntervalMinutes = normalized;
+    _restartAutoSyncTimer();
+    notifyListeners();
+  }
+
+  Future<bool> runDueAutoSync({DateTime? now}) async {
+    if (!_authenticated ||
+        _autoSyncIntervalMinutes <= 0 ||
+        _loading ||
+        _autoSyncRunning) {
+      return false;
+    }
+    final currentNow = now ?? DateTime.now();
+    final lastSyncAt = _lastSyncAt;
+    if (lastSyncAt != null &&
+        currentNow.difference(lastSyncAt).inMinutes <
+            _autoSyncIntervalMinutes) {
+      return false;
+    }
+
+    _autoSyncRunning = true;
+    try {
+      await syncAssignments();
+      return _error == null;
+    } finally {
+      _autoSyncRunning = false;
+    }
+  }
+
   Future<void> logout() async {
     await sessionStore.clear();
     await repository.clear();
@@ -177,6 +220,7 @@ class AssignmentStore extends ChangeNotifier {
     _account = null;
     _assignments.clear();
     _lastSyncAt = null;
+    _restartAutoSyncTimer();
     await widgetSnapshotService.saveSnapshot([]);
     notifyListeners();
   }
@@ -194,6 +238,69 @@ class AssignmentStore extends ChangeNotifier {
       offsetsMinutes: _reminderOffsetsMinutes,
     );
     await widgetSnapshotService.saveAssignments(_assignments);
+  }
+
+  Future<void> _syncAssignmentsBody({bool refreshSession = true}) async {
+    if (refreshSession) {
+      await _refreshChaoxingSession();
+    }
+    final incoming = await chaoxingClient.fetchAssignments();
+    final merged = await repository.mergeAndSave(incoming);
+    _assignments
+      ..clear()
+      ..addAll(merged);
+    _lastSyncAt = await repository.lastSyncAt();
+    await _afterAssignmentsChanged();
+  }
+
+  Future<void> _refreshChaoxingSession() async {
+    final account = _account ?? await sessionStore.readChaoxingAccount();
+    final password = await sessionStore.readChaoxingPassword();
+    if (account == null ||
+        account.trim().isEmpty ||
+        password == null ||
+        password.isEmpty) {
+      return;
+    }
+    final result = await chaoxingClient.login(
+      account: account,
+      password: password,
+    );
+    if (!result.success) {
+      throw StateError(result.message ?? '登录失败');
+    }
+  }
+
+  Future<int> _loadAutoSyncIntervalMinutes() async {
+    final prefs = await SharedPreferences.getInstance();
+    return normalizeAutoSyncIntervalMinutes(
+      prefs.getInt(_autoSyncIntervalKey) ?? defaultAutoSyncIntervalMinutes,
+    );
+  }
+
+  void _restartAutoSyncTimer() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = null;
+    if (!_authenticated || _autoSyncIntervalMinutes <= 0) {
+      return;
+    }
+    _autoSyncTimer = Timer.periodic(
+      Duration(minutes: _autoSyncIntervalMinutes),
+      (_) => unawaited(runDueAutoSync()),
+    );
+  }
+
+  static int normalizeAutoSyncIntervalMinutes(int minutes) {
+    if (minutes <= 0) {
+      return 0;
+    }
+    if (minutes < 1) {
+      return 1;
+    }
+    if (minutes > 1440) {
+      return 1440;
+    }
+    return minutes;
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -228,5 +335,11 @@ class AssignmentStore extends ChangeNotifier {
       return '登录成功，但作业刷新暂时失败。你可以稍后在同步页重新刷新。';
     }
     return raw.isEmpty ? '操作没有完成，请稍后再试。' : raw;
+  }
+
+  @override
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    super.dispose();
   }
 }

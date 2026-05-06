@@ -16,6 +16,7 @@ void main() {
         widgetSnapshotService: _NoopWidgetSnapshotService(),
         chaoxingClient: _LoginOnlyChaoxingClient(),
       );
+      addTearDown(store.dispose);
 
       await store.loginChaoxing(
         account: 'student',

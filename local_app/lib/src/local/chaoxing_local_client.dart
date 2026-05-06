@@ -13,23 +13,22 @@ class ChaoxingLoginResult {
 
 class ChaoxingLocalClient {
   ChaoxingLocalClient({Dio? dio})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 12),
-              receiveTimeout: const Duration(seconds: 20),
-              followRedirects: false,
-              validateStatus: (status) => status != null && status < 500,
-              headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 SuperStarStudyHelper/0.1',
-                'Accept':
-                    'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Referer': 'https://i.chaoxing.com/',
-              },
-            ),
-          );
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 12),
+                receiveTimeout: const Duration(seconds: 20),
+                followRedirects: false,
+                validateStatus: (status) => status != null && status < 500,
+                headers: {
+                  'User-Agent':
+                      'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 SuperStarStudyHelper/0.1',
+                  'Accept':
+                      'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                  'Referer': 'https://i.chaoxing.com/',
+                },
+              ),
+            );
 
   final Dio _dio;
   final Map<String, String> _cookies = {};
@@ -53,8 +52,7 @@ class ChaoxingLocalClient {
     );
     _rememberCookies(response);
     final body = response.data?.toString() ?? '';
-    final success =
-        body.contains('"status":true') ||
+    final success = body.contains('"status":true') ||
         body.contains('"result":true') ||
         body.contains('true');
     if (!success) {
@@ -196,9 +194,8 @@ class ChaoxingLocalClient {
       if (separator <= 0) {
         continue;
       }
-      _cookies[pair.substring(0, separator).trim()] = pair
-          .substring(separator + 1)
-          .trim();
+      _cookies[pair.substring(0, separator).trim()] =
+          pair.substring(separator + 1).trim();
     }
   }
 
