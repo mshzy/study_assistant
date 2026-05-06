@@ -27,20 +27,23 @@ class AssignmentListScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('待完成作业',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w800)),
-                        Text('${assignments.length} 项需要关注',
-                            style: Theme.of(context).textTheme.bodyMedium),
+                        Text(
+                          '待完成作业',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          '${assignments.length} 项需要关注',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                       ],
                     ),
                   ),
                   IconButton.filledTonal(
-                      onPressed: store.isLoading ? null : store.syncAssignments,
-                      icon: const Icon(Icons.refresh),
-                      tooltip: '刷新作业'),
+                    onPressed: store.isLoading ? null : store.syncAssignments,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: '刷新作业',
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -52,7 +55,8 @@ class AssignmentListScreen extends StatelessWidget {
                 const _EmptyAssignments()
               else
                 ...assignments.map(
-                    (assignment) => _AssignmentCard(assignment: assignment)),
+                  (assignment) => _AssignmentCard(assignment: assignment),
+                ),
             ],
           ),
         );
@@ -73,8 +77,10 @@ class _SyncHint extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            Icon(Icons.info_outline,
-                color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(width: 10),
             Expanded(child: Text(message)),
           ],
@@ -91,8 +97,10 @@ class _AssignmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deadline =
-        DateFormat('M月d日 HH:mm', 'zh_CN').format(assignment.deadlineAt);
+    final deadline = DateFormat(
+      'M月d日 HH:mm',
+      'zh_CN',
+    ).format(assignment.deadlineAt);
     final urgent =
         assignment.deadlineAt.difference(DateTime.now()).inHours <= 24;
     return Padding(
@@ -120,14 +128,17 @@ class _AssignmentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(assignment.title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        assignment.title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
                       const SizedBox(height: 4),
-                      Text(assignment.courseName,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        assignment.courseName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -157,17 +168,23 @@ class _EmptyAssignments extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(8)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Column(
         children: [
-          Icon(Icons.check_circle_outline,
-              size: 48, color: Theme.of(context).colorScheme.primary),
+          Icon(
+            Icons.check_circle_outline,
+            size: 48,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(height: 12),
-          Text('现在没有待完成作业',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            '现在没有待完成作业',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
           const Text('绑定学习通账号后，作业会出现在这里。'),
         ],

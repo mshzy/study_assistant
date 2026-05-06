@@ -11,17 +11,17 @@ void main() {
             'cpi': 789,
             'clazz': {
               'data': [
-                {'id': 222}
-              ]
+                {'id': 222},
+              ],
             },
             'course': {
               'data': [
-                {'id': 111, 'name': '大学英语'}
-              ]
-            }
-          }
-        }
-      ]
+                {'id': 111, 'name': '大学英语'},
+              ],
+            },
+          },
+        },
+      ],
     });
 
     expect(courses, hasLength(1));
@@ -41,20 +41,24 @@ void main() {
               'nameOne': '章节作业',
               'activeType': 47,
               'status': 1,
-              'endTime': '2026-05-07 08:00:00'
+              'endTime': '2026-05-07 08:00:00',
             },
             {
               'id': 444,
               'nameOne': '课堂签到',
               'activeType': 2,
               'status': 1,
-              'endTime': '2026-05-07 08:00:00'
-            }
-          ]
-        }
+              'endTime': '2026-05-07 08:00:00',
+            },
+          ],
+        },
       },
       ChaoxingCourseRef(
-          courseId: '111', clazzId: '222', courseName: '大学英语', cpi: '789'),
+        courseId: '111',
+        clazzId: '222',
+        courseName: '大学英语',
+        cpi: '789',
+      ),
       now: DateTime(2026, 5, 5, 8),
     );
 
@@ -67,37 +71,42 @@ void main() {
   });
 
   test(
-      'keeps unfinished peer review homework and skips completed peer review homework',
-      () {
-    final assignments = ChaoxingApiParser.parseActivityAssignments(
-      {
-        'data': {
-          'activeList': [
-            {
-              'id': 555,
-              'nameOne': '互评作业',
-              'activeType': 47,
-              'status': 2,
-              'statusName': '已互评',
-              'endTime': '2026-05-07 08:00:00'
-            },
-            {
-              'id': 556,
-              'nameOne': '互评作业',
-              'activeType': 47,
-              'status': 1,
-              'statusName': '未完成',
-              'endTime': '2026-05-08 08:00:00'
-            }
-          ]
-        }
-      },
-      ChaoxingCourseRef(
-          courseId: '111', clazzId: '222', courseName: '大学英语', cpi: '789'),
-      now: DateTime(2026, 5, 5, 8),
-    );
+    'keeps unfinished peer review homework and skips completed peer review homework',
+    () {
+      final assignments = ChaoxingApiParser.parseActivityAssignments(
+        {
+          'data': {
+            'activeList': [
+              {
+                'id': 555,
+                'nameOne': '互评作业',
+                'activeType': 47,
+                'status': 2,
+                'statusName': '已互评',
+                'endTime': '2026-05-07 08:00:00',
+              },
+              {
+                'id': 556,
+                'nameOne': '互评作业',
+                'activeType': 47,
+                'status': 1,
+                'statusName': '未完成',
+                'endTime': '2026-05-08 08:00:00',
+              },
+            ],
+          },
+        },
+        ChaoxingCourseRef(
+          courseId: '111',
+          clazzId: '222',
+          courseName: '大学英语',
+          cpi: '789',
+        ),
+        now: DateTime(2026, 5, 5, 8),
+      );
 
-    expect(assignments, hasLength(1));
-    expect(assignments.first.id, 'cx:activity:556');
-  });
+      expect(assignments, hasLength(1));
+      expect(assignments.first.id, 'cx:activity:556');
+    },
+  );
 }

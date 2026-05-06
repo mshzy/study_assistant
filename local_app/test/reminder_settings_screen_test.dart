@@ -18,9 +18,11 @@ void main() {
     );
     await store.restoreSession();
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: ReminderSettingsScreen(store: store)),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: ReminderSettingsScreen(store: store)),
+      ),
+    );
 
     await tester.enterText(find.byType(TextField), '45');
     await tester.tap(find.text('添加'));

@@ -14,33 +14,42 @@ class SyncStatusScreen extends StatelessWidget {
       animation: store,
       builder: (context, _) {
         final lastSyncAt = store.lastSyncAt;
-        final stale = lastSyncAt == null ||
+        final stale =
+            lastSyncAt == null ||
             DateTime.now().difference(lastSyncAt).inHours >= 24;
         return RefreshIndicator(
           onRefresh: store.syncAssignments,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('本地同步',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                '本地同步',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('账号密码和作业数据只保存在本机，不会上传到任何服务器。',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                '账号密码和作业数据只保存在本机，不会上传到任何服务器。',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 4),
-              Text('刷新时会用已保存的学习通账号密码获取作业。',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                '刷新时会用已保存的学习通账号密码获取作业。',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               Card(
                 child: ListTile(
                   leading: Icon(
-                      stale ? Icons.warning_amber : Icons.check_circle_outline),
+                    stale ? Icons.warning_amber : Icons.check_circle_outline,
+                  ),
                   title: Text(stale ? '建议刷新学习通作业' : '本地数据较新'),
-                  subtitle: Text(lastSyncAt == null
-                      ? '尚未同步'
-                      : '上次同步：${DateFormat('M月d日 HH:mm', 'zh_CN').format(lastSyncAt)}'),
+                  subtitle: Text(
+                    lastSyncAt == null
+                        ? '尚未同步'
+                        : '上次同步：${DateFormat('M月d日 HH:mm', 'zh_CN').format(lastSyncAt)}',
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -57,8 +66,10 @@ class SyncStatusScreen extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline,
-                            color: Theme.of(context).colorScheme.primary),
+                        Icon(
+                          Icons.info_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(child: Text(store.error!)),
                       ],

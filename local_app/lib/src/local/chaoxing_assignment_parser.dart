@@ -9,11 +9,24 @@ class ChaoxingAssignmentParser {
     DateTime? now,
   }) {
     final parsedAt = now ?? DateTime.now();
-    final courseName = _firstMatch(html, [
-          RegExp(r'class=["' '][^"' ']*course-name[^"' ']*["' '][^>]*>([^<]+)',
-              caseSensitive: false),
-          RegExp(r'class=["' '][^"' ']*courseName[^"' ']*["' '][^>]*>([^<]+)',
-              caseSensitive: false),
+    final courseName =
+        _firstMatch(html, [
+          RegExp(
+            r'class=["'
+            '][^"'
+            ']*course-name[^"'
+            ']*["'
+            '][^>]*>([^<]+)',
+            caseSensitive: false,
+          ),
+          RegExp(
+            r'class=["'
+            '][^"'
+            ']*courseName[^"'
+            ']*["'
+            '][^>]*>([^<]+)',
+            caseSensitive: false,
+          ),
           RegExp(r'课程[:：]\s*([^<\n\r]+)'),
         ])?.trim() ??
         fallbackCourseName;
@@ -34,8 +47,10 @@ class ChaoxingAssignmentParser {
       caseSensitive: false,
       dotAll: true,
     );
-    final blocks =
-        itemRegex.allMatches(html).map((match) => match.group(0)!).toList();
+    final blocks = itemRegex
+        .allMatches(html)
+        .map((match) => match.group(0)!)
+        .toList();
     final candidates = blocks.isEmpty ? <String>[html] : blocks;
 
     final seen = <String>{};
@@ -62,9 +77,9 @@ class ChaoxingAssignmentParser {
     required Uri baseUri,
     required DateTime now,
   }) {
-    final cleanText = _decodeEntities(_stripTags(block))
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final cleanText = _decodeEntities(
+      _stripTags(block),
+    ).replaceAll(RegExp(r'\s+'), ' ').trim();
     if (_isCompletedPeerReview(cleanText)) {
       return null;
     }
@@ -73,16 +88,23 @@ class ChaoxingAssignmentParser {
       return null;
     }
 
-    final title = _firstMatch(block, [
-          RegExp(r'(?:data-title|title)=["' ']([^"' ']+)["' ']',
-              caseSensitive: false),
+    final title =
+        _firstMatch(block, [
           RegExp(
-              r'class=["'
-              '][^"'
-              ']*(?:title|work-title|task-title)[^"'
-              ']*["'
-              '][^>]*>([^<]+)',
-              caseSensitive: false),
+            r'(?:data-title|title)=["'
+            ']([^"'
+            ']+)["'
+            ']',
+            caseSensitive: false,
+          ),
+          RegExp(
+            r'class=["'
+            '][^"'
+            ']*(?:title|work-title|task-title)[^"'
+            ']*["'
+            '][^>]*>([^<]+)',
+            caseSensitive: false,
+          ),
           RegExp(r'<a[^>]*>(.*?)</a>', caseSensitive: false, dotAll: true),
           RegExp(r'<p[^>]*>(.*?)</p>', caseSensitive: false, dotAll: true),
         ])?.trim() ??
@@ -92,7 +114,8 @@ class ChaoxingAssignmentParser {
     }
 
     final sourceUrl = _extractSourceUrl(block);
-    final sourceId = _extractSourceId(block, sourceUrl) ??
+    final sourceId =
+        _extractSourceId(block, sourceUrl) ??
         '${_decodeEntities(_stripTags(title))}:${deadline.rawText}';
     final blockCourseName = _extractBlockCourseName(block, courseName);
 
@@ -116,7 +139,9 @@ class ChaoxingAssignmentParser {
     ]);
     if (absolute != null) {
       return _ParsedDeadline(
-          rawText: absolute, value: _parseChinaTime(absolute));
+        rawText: absolute,
+        value: _parseChinaTime(absolute),
+      );
     }
 
     final remaining = _firstMatch(cleanText, [
@@ -132,8 +157,9 @@ class ChaoxingAssignmentParser {
     final hours = _firstInt(remaining, RegExp(r'(\d+)\s*(?:小时|时)')) ?? 0;
     final minutes = _firstInt(remaining, RegExp(r'(\d+)\s*(?:分钟|分)')) ?? 0;
     return _ParsedDeadline(
-        rawText: remaining,
-        value: now.add(Duration(days: days, hours: hours, minutes: minutes)));
+      rawText: remaining,
+      value: now.add(Duration(days: days, hours: hours, minutes: minutes)),
+    );
   }
 
   static String _fallbackTitle(String cleanText) {
@@ -146,41 +172,73 @@ class ChaoxingAssignmentParser {
 
   static String? _extractSourceUrl(String block) {
     return _firstMatch(block, [
-      RegExp(r'<a[^>]+href=["' ']([^"' ']+)["' ']', caseSensitive: false),
       RegExp(
-          r'data(?:-url)?=["'
-          ']([^"'
-          ']*(?:doHomeWork|taskrefId|workId|/work/)[^"'
-          ']*)["'
-          ']',
-          caseSensitive: false),
+        r'<a[^>]+href=["'
+        ']([^"'
+        ']+)["'
+        ']',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'data(?:-url)?=["'
+        ']([^"'
+        ']*(?:doHomeWork|taskrefId|workId|/work/)[^"'
+        ']*)["'
+        ']',
+        caseSensitive: false,
+      ),
     ]);
   }
 
   static String? _extractSourceId(String block, String? sourceUrl) {
     if (sourceUrl != null) {
-      final fromUrl = _queryParam(sourceUrl,
-          const ['taskrefId', 'workId', 'workid', 'jobid', 'activeId', 'id']);
+      final fromUrl = _queryParam(sourceUrl, const [
+        'taskrefId',
+        'workId',
+        'workid',
+        'jobid',
+        'activeId',
+        'id',
+      ]);
       if (fromUrl != null) {
         return fromUrl;
       }
     }
 
     final direct = _firstMatch(block, [
-      RegExp(r'data-id=["' ']([^"' ']+)["' ']', caseSensitive: false),
       RegExp(
-          r'(?:[?&]|^)(?:taskrefId|workId|workid|jobid|activeId|id)=([A-Za-z0-9_-]+)',
-          caseSensitive: false),
+        r'data-id=["'
+        ']([^"'
+        ']+)["'
+        ']',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:[?&]|^)(?:taskrefId|workId|workid|jobid|activeId|id)=([A-Za-z0-9_-]+)',
+        caseSensitive: false,
+      ),
     ]);
     return direct;
   }
 
   static String _extractBlockCourseName(String block, String fallback) {
     final named = _firstMatch(block, [
-      RegExp(r'class=["' '][^"' ']*course-name[^"' ']*["' '][^>]*>([^<]+)',
-          caseSensitive: false),
-      RegExp(r'class=["' '][^"' ']*courseName[^"' ']*["' '][^>]*>([^<]+)',
-          caseSensitive: false),
+      RegExp(
+        r'class=["'
+        '][^"'
+        ']*course-name[^"'
+        ']*["'
+        '][^>]*>([^<]+)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'class=["'
+        '][^"'
+        ']*courseName[^"'
+        ']*["'
+        '][^>]*>([^<]+)',
+        caseSensitive: false,
+      ),
     ]);
     if (named != null && named.trim().isNotEmpty) {
       return _decodeEntities(_stripTags(named)).trim();
@@ -189,9 +247,11 @@ class ChaoxingAssignmentParser {
     final spanTexts =
         RegExp(r'<span[^>]*>(.*?)</span>', caseSensitive: false, dotAll: true)
             .allMatches(block)
-            .map((match) => _decodeEntities(_stripTags(match.group(1) ?? ''))
-                .replaceAll(RegExp(r'\s+'), ' ')
-                .trim())
+            .map(
+              (match) => _decodeEntities(
+                _stripTags(match.group(1) ?? ''),
+              ).replaceAll(RegExp(r'\s+'), ' ').trim(),
+            )
             .where((text) => text.isNotEmpty);
     for (final text in spanTexts) {
       if (!_looksLikeStatusOrTime(text)) {
@@ -202,8 +262,9 @@ class ChaoxingAssignmentParser {
   }
 
   static bool _looksLikeStatusOrTime(String text) {
-    return RegExp(r'(未提交|已提交|待批阅|已完成|已过期|剩余|截止|开始|查看|得分|分数|成绩|20\d{2}[-/年])')
-        .hasMatch(text);
+    return RegExp(
+      r'(未提交|已提交|待批阅|已完成|已过期|剩余|截止|开始|查看|得分|分数|成绩|20\d{2}[-/年])',
+    ).hasMatch(text);
   }
 
   static bool _isCompletedPeerReview(String text) {
@@ -219,13 +280,14 @@ class ChaoxingAssignmentParser {
   static String _extractRequirement(String block, String cleanText) {
     final desc = _firstMatch(block, [
       RegExp(
-          r'class=["'
-          '][^"'
-          ']*(?:desc|require|content|detail)[^"'
-          ']*["'
-          '][^>]*>(.*?)</',
-          caseSensitive: false,
-          dotAll: true),
+        r'class=["'
+        '][^"'
+        ']*(?:desc|require|content|detail)[^"'
+        ']*["'
+        '][^>]*>(.*?)</',
+        caseSensitive: false,
+        dotAll: true,
+      ),
     ]);
     return _decodeEntities(_stripTags(desc ?? cleanText)).trim();
   }
@@ -238,8 +300,8 @@ class ChaoxingAssignmentParser {
         .replaceAll('/', '-')
         .trim();
     final parts = RegExp(
-            r'(20\d{2})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?')
-        .firstMatch(normalized);
+      r'(20\d{2})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?',
+    ).firstMatch(normalized);
     if (parts == null) {
       throw FormatException('Unsupported deadline format: $raw');
     }
@@ -295,16 +357,17 @@ class ChaoxingAssignmentParser {
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (match) {
-      final codePoint = int.tryParse(match.group(1)!, radix: 16);
-      return codePoint == null
-          ? match.group(0)!
-          : String.fromCharCode(codePoint);
-    }).replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
-      final codePoint = int.tryParse(match.group(1)!);
-      return codePoint == null
-          ? match.group(0)!
-          : String.fromCharCode(codePoint);
-    });
+          final codePoint = int.tryParse(match.group(1)!, radix: 16);
+          return codePoint == null
+              ? match.group(0)!
+              : String.fromCharCode(codePoint);
+        })
+        .replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+          final codePoint = int.tryParse(match.group(1)!);
+          return codePoint == null
+              ? match.group(0)!
+              : String.fromCharCode(codePoint);
+        });
   }
 }
 

@@ -8,28 +8,34 @@ import 'package:study_assistant_mobile/src/services/widget_snapshot_service.dart
 
 void main() {
   test(
-      'login marks session authenticated even when first assignment sync fails',
-      () async {
-    final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(),
-      notificationService: _NoopNotificationService(),
-      widgetSnapshotService: _NoopWidgetSnapshotService(),
-      chaoxingClient: _LoginOnlyChaoxingClient(),
-    );
+    'login marks session authenticated even when first assignment sync fails',
+    () async {
+      final store = AssignmentStore(
+        sessionStore: _MemorySessionStore(),
+        notificationService: _NoopNotificationService(),
+        widgetSnapshotService: _NoopWidgetSnapshotService(),
+        chaoxingClient: _LoginOnlyChaoxingClient(),
+      );
 
-    await store.loginChaoxing(
-        account: 'student', password: 'password', agreementAccepted: true);
+      await store.loginChaoxing(
+        account: 'student',
+        password: 'password',
+        agreementAccepted: true,
+      );
 
-    expect(store.isAuthenticated, isTrue);
-    expect(store.account, 'student');
-    expect(store.error, contains('同步'));
-  });
+      expect(store.isAuthenticated, isTrue);
+      expect(store.account, 'student');
+      expect(store.error, contains('同步'));
+    },
+  );
 }
 
 class _LoginOnlyChaoxingClient extends ChaoxingLocalClient {
   @override
-  Future<ChaoxingLoginResult> login(
-      {required String account, required String password}) async {
+  Future<ChaoxingLoginResult> login({
+    required String account,
+    required String password,
+  }) async {
     return const ChaoxingLoginResult(success: true);
   }
 
@@ -44,8 +50,10 @@ class _MemorySessionStore extends SecureSessionStore {
   String? password;
 
   @override
-  Future<void> saveChaoxingAccount(
-      {required String account, required String password}) async {
+  Future<void> saveChaoxingAccount({
+    required String account,
+    required String password,
+  }) async {
     this.account = account;
     this.password = password;
   }

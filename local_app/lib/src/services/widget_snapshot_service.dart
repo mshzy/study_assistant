@@ -13,9 +13,13 @@ class WidgetSnapshotService {
   Future<void> saveSnapshot(List<WidgetSnapshotItem> items) async {
     await HomeWidget.setAppGroupId(_groupId);
     await HomeWidget.saveWidgetData<String>(
-        _snapshotKey, jsonEncode(items.map((item) => item.toJson()).toList()));
+      _snapshotKey,
+      jsonEncode(items.map((item) => item.toJson()).toList()),
+    );
     await HomeWidget.updateWidget(
-        iOSName: 'AssignmentWidget', androidName: 'AssignmentWidgetProvider');
+      iOSName: 'AssignmentWidget',
+      androidName: 'AssignmentWidgetProvider',
+    );
   }
 
   Future<void> saveAssignments(List<Assignment> assignments) {

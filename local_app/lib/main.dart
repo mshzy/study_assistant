@@ -44,33 +44,43 @@ class StudyAssistantApp extends StatelessWidget {
       refreshListenable: store,
       initialLocation: store.isAuthenticated ? '/assignments' : '/login',
       routes: [
-        GoRoute(path: '/login', builder: (_, __) => LoginScreen(store: store)),
+        GoRoute(
+          path: '/login',
+          builder: (_, __) => LoginScreen(store: store),
+        ),
         ShellRoute(
           builder: (_, __, child) => AppShell(store: store, child: child),
           routes: [
             GoRoute(
-                path: '/assignments',
-                builder: (_, __) => AssignmentListScreen(store: store)),
+              path: '/assignments',
+              builder: (_, __) => AssignmentListScreen(store: store),
+            ),
             GoRoute(
               path: '/assignments/:id',
               builder: (_, state) => AssignmentDetailScreen(
-                  store: store, assignmentId: state.pathParameters['id']!),
+                store: store,
+                assignmentId: state.pathParameters['id']!,
+              ),
             ),
             GoRoute(
-                path: '/sync',
-                builder: (_, __) => SyncStatusScreen(store: store)),
+              path: '/sync',
+              builder: (_, __) => SyncStatusScreen(store: store),
+            ),
             GoRoute(
-                path: '/reminders',
-                builder: (_, __) => ReminderSettingsScreen(store: store)),
+              path: '/reminders',
+              builder: (_, __) => ReminderSettingsScreen(store: store),
+            ),
             GoRoute(
-                path: '/profile',
-                builder: (_, __) => ProfileScreen(store: store)),
+              path: '/profile',
+              builder: (_, __) => ProfileScreen(store: store),
+            ),
           ],
         ),
       ],
       redirect: (_, state) {
-        final normalizedLocation =
-            AppDeepLinks.normalizeIncomingLocation(state.uri);
+        final normalizedLocation = AppDeepLinks.normalizeIncomingLocation(
+          state.uri,
+        );
         if (normalizedLocation != null) {
           return normalizedLocation;
         }

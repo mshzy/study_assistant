@@ -18,7 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canLogin = _account.text.trim().isNotEmpty &&
+    final canLogin =
+        _account.text.trim().isNotEmpty &&
         _password.text.isNotEmpty &&
         _accepted &&
         !widget.store.isLoading;
@@ -32,17 +33,16 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               '用户登录',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF17211D),
-                  ),
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF17211D),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '请使用超星学习通账户登录作业提醒',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: const Color(0xFF8B9290)),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF8B9290)),
             ),
             const SizedBox(height: 22),
             TextField(
@@ -70,24 +70,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   disabledBackgroundColor: const Color(0xFFD6D6D8),
                   disabledForegroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(7)),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
                 ),
                 onPressed: canLogin
                     ? () => widget.store.loginChaoxing(
-                          account: _account.text,
-                          password: _password.text,
-                          agreementAccepted: _accepted,
-                        )
+                        account: _account.text,
+                        password: _password.text,
+                        agreementAccepted: _accepted,
+                      )
                     : null,
                 child: widget.store.isLoading
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('登录',
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        '登录',
                         style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w600)),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 22),
@@ -114,12 +122,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       text: '我已阅读并同意 ',
                       children: [
                         TextSpan(
-                            text: '服务协议',
-                            style: TextStyle(color: Color(0xFF00A78F))),
+                          text: '服务协议',
+                          style: TextStyle(color: Color(0xFF00A78F)),
+                        ),
                         TextSpan(text: ' 和 '),
                         TextSpan(
-                            text: '隐私协议',
-                            style: TextStyle(color: Color(0xFF00A78F))),
+                          text: '隐私协议',
+                          style: TextStyle(color: Color(0xFF00A78F)),
+                        ),
                       ],
                     ),
                     style: TextStyle(color: Color(0xFF68706D), fontSize: 14),
@@ -129,8 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             if (widget.store.error != null) ...[
               const SizedBox(height: 18),
-              Text(widget.store.error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                widget.store.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -146,7 +158,9 @@ class _LoginScreenState extends State<LoginScreen> {
       fillColor: const Color(0xFFF7F7F8),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
+        borderRadius: BorderRadius.circular(7),
+        borderSide: BorderSide.none,
+      ),
     );
   }
 }

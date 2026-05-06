@@ -21,7 +21,8 @@ class ChaoxingApiParser {
       return [];
     }
 
-    final channels = _asList(roots['channelList']) ??
+    final channels =
+        _asList(roots['channelList']) ??
         _asList(roots['data']) ??
         _asList(roots['courses']) ??
         const [];
@@ -32,19 +33,24 @@ class ChaoxingApiParser {
         continue;
       }
       final content = _asMap(channel['content']) ?? channel;
-      final courseData = _firstMapFrom(content['course']) ??
+      final courseData =
+          _firstMapFrom(content['course']) ??
           _asMap(content['course']) ??
           content;
-      final clazzData = _firstMapFrom(content['clazz']) ??
+      final clazzData =
+          _firstMapFrom(content['clazz']) ??
           _asMap(content['clazz']) ??
           content;
 
       final courseId = _stringValue(
-          courseData['id'] ?? content['courseId'] ?? content['courseid']);
-      final clazzId = _stringValue(clazzData['id'] ??
-          channel['key'] ??
-          content['clazzId'] ??
-          content['clazzid']);
+        courseData['id'] ?? content['courseId'] ?? content['courseid'],
+      );
+      final clazzId = _stringValue(
+        clazzData['id'] ??
+            channel['key'] ??
+            content['clazzId'] ??
+            content['clazzid'],
+      );
       final courseName = _stringValue(
         courseData['name'] ??
             courseData['courseName'] ??
@@ -83,7 +89,8 @@ class ChaoxingApiParser {
     }
 
     final data = _asMap(root['data']) ?? root;
-    final activities = _asList(data['activeList']) ??
+    final activities =
+        _asList(data['activeList']) ??
         _asList(data['list']) ??
         _asList(data['activities']) ??
         const [];
@@ -94,11 +101,14 @@ class ChaoxingApiParser {
         continue;
       }
       final id = _stringValue(
-          activity['id'] ?? activity['activeId'] ?? activity['aid']);
-      final title = _stringValue(activity['nameOne'] ??
-          activity['name'] ??
-          activity['title'] ??
-          activity['activeName']);
+        activity['id'] ?? activity['activeId'] ?? activity['aid'],
+      );
+      final title = _stringValue(
+        activity['nameOne'] ??
+            activity['name'] ??
+            activity['title'] ??
+            activity['activeName'],
+      );
       if (_isCompletedPeerReview(activity, title ?? '')) {
         continue;
       }
@@ -113,9 +123,12 @@ class ChaoxingApiParser {
           courseName: course.courseName,
           title: title,
           deadlineAt: deadline,
-          requirementsText: _stringValue(activity['description'] ??
-                  activity['content'] ??
-                  activity['remark']) ??
+          requirementsText:
+              _stringValue(
+                activity['description'] ??
+                    activity['content'] ??
+                    activity['remark'],
+              ) ??
               title,
           status: 'pending',
           submitUrl: _activityUrl(course, id),
@@ -127,13 +140,16 @@ class ChaoxingApiParser {
   }
 
   static bool _looksLikeHomework(Map<String, dynamic> activity) {
-    final type = _stringValue(activity['activeType'] ??
-        activity['type'] ??
-        activity['activeTypeName']);
-    final name = _stringValue(activity['nameOne'] ??
-            activity['name'] ??
-            activity['title'] ??
-            activity['activeName']) ??
+    final type = _stringValue(
+      activity['activeType'] ?? activity['type'] ?? activity['activeTypeName'],
+    );
+    final name =
+        _stringValue(
+          activity['nameOne'] ??
+              activity['name'] ??
+              activity['title'] ??
+              activity['activeName'],
+        ) ??
         '';
     if (name.contains('作业') ||
         name.contains('测验') ||
@@ -144,7 +160,9 @@ class ChaoxingApiParser {
   }
 
   static bool _isCompletedPeerReview(
-      Map<String, dynamic> activity, String title) {
+    Map<String, dynamic> activity,
+    String title,
+  ) {
     final combined = [
       title,
       _stringValue(activity['description']),
@@ -164,9 +182,17 @@ class ChaoxingApiParser {
       return true;
     }
     final status = _stringValue(
-        activity['status'] ?? activity['state'] ?? activity['completeStatus']);
-    return const {'2', '3', '4', 'finished', 'done', 'complete', 'completed'}
-        .contains(status?.toLowerCase());
+      activity['status'] ?? activity['state'] ?? activity['completeStatus'],
+    );
+    return const {
+      '2',
+      '3',
+      '4',
+      'finished',
+      'done',
+      'complete',
+      'completed',
+    }.contains(status?.toLowerCase());
   }
 
   static DateTime? _deadlineFrom(Map<String, dynamic> activity) {
@@ -195,8 +221,8 @@ class ChaoxingApiParser {
         .replaceAll('/', '-')
         .trim();
     final match = RegExp(
-            r'(20\d{2})-(\d{1,2})-(\d{1,2})(?:\s+|T)(\d{1,2}):(\d{2})(?::(\d{2}))?')
-        .firstMatch(normalized);
+      r'(20\d{2})-(\d{1,2})-(\d{1,2})(?:\s+|T)(\d{1,2}):(\d{2})(?::(\d{2}))?',
+    ).firstMatch(normalized);
     if (match == null) {
       return null;
     }

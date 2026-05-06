@@ -38,22 +38,24 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customOffsets = _offsets
-        .where((item) => !_presetOffsets.containsKey(item))
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
+    final customOffsets =
+        _offsets.where((item) => !_presetOffsets.containsKey(item)).toList()
+          ..sort((a, b) => b.compareTo(a));
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('提醒设置',
-            style: Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          '提醒设置',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 6),
-        Text('保存后会重新安排所有未完成作业的本地通知',
-            style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          '保存后会重新安排所有未完成作业的本地通知',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -71,11 +73,12 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Text('自定义提醒',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          '自定义提醒',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -102,10 +105,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
               }),
             ),
             const SizedBox(width: 8),
-            FilledButton(
-              onPressed: _addCustomOffset,
-              child: const Text('添加'),
-            ),
+            FilledButton(onPressed: _addCustomOffset, child: const Text('添加')),
           ],
         ),
         if (customOffsets.isNotEmpty) ...[
@@ -181,9 +181,9 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _labelFor(int offsetMinutes) {

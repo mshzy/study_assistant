@@ -5,8 +5,11 @@ import 'package:intl/intl.dart';
 import '../services/assignment_store.dart';
 
 class AssignmentDetailScreen extends StatelessWidget {
-  const AssignmentDetailScreen(
-      {super.key, required this.store, required this.assignmentId});
+  const AssignmentDetailScreen({
+    super.key,
+    required this.store,
+    required this.assignmentId,
+  });
 
   final AssignmentStore store;
   final String assignmentId;
@@ -39,14 +42,17 @@ class AssignmentDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(assignment.courseName,
-                style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              assignment.courseName,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
-            Text(assignment.title,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              assignment.title,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -56,8 +62,13 @@ class AssignmentDetailScreen extends StatelessWidget {
                     const Icon(Icons.event_available),
                     const SizedBox(width: 12),
                     Expanded(
-                        child: Text(DateFormat('yyyy年M月d日 HH:mm', 'zh_CN')
-                            .format(assignment.deadlineAt))),
+                      child: Text(
+                        DateFormat(
+                          'yyyy年M月d日 HH:mm',
+                          'zh_CN',
+                        ).format(assignment.deadlineAt),
+                      ),
+                    ),
                   ],
                 ),
               ),

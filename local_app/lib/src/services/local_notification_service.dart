@@ -21,11 +21,13 @@ class LocalNotificationService {
     timezone_data.initializeTimeZones();
     const android = AndroidInitializationSettings('@drawable/app_icon');
     const ios = DarwinInitializationSettings();
-    await _plugin
-        .initialize(const InitializationSettings(android: android, iOS: ios));
+    await _plugin.initialize(
+      const InitializationSettings(android: android, iOS: ios),
+    );
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
             'assignment_deadlines',
@@ -59,18 +61,23 @@ class LocalNotificationService {
   Future<void> _requestNotificationPermission() async {
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
     await _plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin
+        >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
   Future<void> _scheduleReminder(
-      Assignment assignment, int offsetMinutes) async {
-    final notifyAt =
-        assignment.deadlineAt.subtract(Duration(minutes: offsetMinutes));
+    Assignment assignment,
+    int offsetMinutes,
+  ) async {
+    final notifyAt = assignment.deadlineAt.subtract(
+      Duration(minutes: offsetMinutes),
+    );
     final remaining = notifyAt.difference(DateTime.now());
     if (remaining.isNegative) {
       return;
@@ -82,8 +89,11 @@ class LocalNotificationService {
       '${assignment.courseName} · ${assignment.title}，${_offsetLabel(offsetMinutes)}截止',
       tz.TZDateTime.from(notifyAt, tz.local),
       const NotificationDetails(
-        android: AndroidNotificationDetails('assignment_deadlines', '作业截止提醒',
-            importance: Importance.high),
+        android: AndroidNotificationDetails(
+          'assignment_deadlines',
+          '作业截止提醒',
+          importance: Importance.high,
+        ),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

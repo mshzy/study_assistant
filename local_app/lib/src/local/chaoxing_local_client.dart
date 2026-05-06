@@ -13,28 +13,31 @@ class ChaoxingLoginResult {
 
 class ChaoxingLocalClient {
   ChaoxingLocalClient({Dio? dio})
-      : _dio = dio ??
-            Dio(
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 12),
-                receiveTimeout: const Duration(seconds: 20),
-                followRedirects: false,
-                validateStatus: (status) => status != null && status < 500,
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 SuperStarStudyHelper/0.1',
-                  'Accept':
-                      'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                  'Referer': 'https://i.chaoxing.com/',
-                },
-              ),
-            );
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 12),
+              receiveTimeout: const Duration(seconds: 20),
+              followRedirects: false,
+              validateStatus: (status) => status != null && status < 500,
+              headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 SuperStarStudyHelper/0.1',
+                'Accept':
+                    'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Referer': 'https://i.chaoxing.com/',
+              },
+            ),
+          );
 
   final Dio _dio;
   final Map<String, String> _cookies = {};
 
-  Future<ChaoxingLoginResult> login(
-      {required String account, required String password}) async {
+  Future<ChaoxingLoginResult> login({
+    required String account,
+    required String password,
+  }) async {
     if (account.trim().isEmpty || password.isEmpty) {
       return const ChaoxingLoginResult(success: false, message: '请输入账号和密码');
     }
@@ -50,12 +53,15 @@ class ChaoxingLocalClient {
     );
     _rememberCookies(response);
     final body = response.data?.toString() ?? '';
-    final success = body.contains('"status":true') ||
+    final success =
+        body.contains('"status":true') ||
         body.contains('"result":true') ||
         body.contains('true');
     if (!success) {
       return ChaoxingLoginResult(
-          success: false, message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码');
+        success: false,
+        message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码',
+      );
     }
     return const ChaoxingLoginResult(success: true);
   }
@@ -105,7 +111,8 @@ class ChaoxingLocalClient {
         continue;
       }
       assignments.addAll(
-          ChaoxingApiParser.parseActivityAssignments(response.data, course));
+        ChaoxingApiParser.parseActivityAssignments(response.data, course),
+      );
     }
     return assignments;
   }
@@ -126,8 +133,10 @@ class ChaoxingLocalClient {
 
     final assignments = <Assignment>[];
     for (final page in pages) {
-      final response = await _safeGet<dynamic>(page.uri,
-          headers: {'Accept': 'text/html,application/xhtml+xml'});
+      final response = await _safeGet<dynamic>(
+        page.uri,
+        headers: {'Accept': 'text/html,application/xhtml+xml'},
+      );
       if (response == null) {
         continue;
       }
@@ -187,8 +196,9 @@ class ChaoxingLocalClient {
       if (separator <= 0) {
         continue;
       }
-      _cookies[pair.substring(0, separator).trim()] =
-          pair.substring(separator + 1).trim();
+      _cookies[pair.substring(0, separator).trim()] = pair
+          .substring(separator + 1)
+          .trim();
     }
   }
 
@@ -210,10 +220,11 @@ class ChaoxingLocalClient {
 }
 
 class _CourseWorkPage {
-  const _CourseWorkPage(
-      {required this.courseName,
-      required this.sourcePrefix,
-      required this.uri});
+  const _CourseWorkPage({
+    required this.courseName,
+    required this.sourcePrefix,
+    required this.uri,
+  });
 
   final String courseName;
   final String sourcePrefix;

@@ -7,33 +7,33 @@ import 'package:study_assistant_mobile/src/services/secure_session_store.dart';
 import 'package:study_assistant_mobile/src/services/widget_snapshot_service.dart';
 
 void main() {
-  test('saveReminderRule persists custom offsets and reschedules assignments',
-      () async {
-    SharedPreferences.setMockInitialValues({});
-    final notificationService = _RecordingNotificationService();
-    final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(account: 'student'),
-      notificationService: notificationService,
-      widgetSnapshotService: _NoopWidgetSnapshotService(),
-    );
-    store.replaceAssignmentsForTest([
-      _assignment(id: 'work-1'),
-    ]);
+  test(
+    'saveReminderRule persists custom offsets and reschedules assignments',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final notificationService = _RecordingNotificationService();
+      final store = AssignmentStore(
+        sessionStore: _MemorySessionStore(account: 'student'),
+        notificationService: notificationService,
+        widgetSnapshotService: _NoopWidgetSnapshotService(),
+      );
+      store.replaceAssignmentsForTest([_assignment(id: 'work-1')]);
 
-    await store.saveReminderRule([30, 1440, 30, 5]);
+      await store.saveReminderRule([30, 1440, 30, 5]);
 
-    expect(store.reminderOffsetsMinutes, [1440, 30, 5]);
-    expect(notificationService.lastOffsets, [1440, 30, 5]);
+      expect(store.reminderOffsetsMinutes, [1440, 30, 5]);
+      expect(notificationService.lastOffsets, [1440, 30, 5]);
 
-    final restored = AssignmentStore(
-      sessionStore: _MemorySessionStore(account: 'student'),
-      notificationService: _RecordingNotificationService(),
-      widgetSnapshotService: _NoopWidgetSnapshotService(),
-    );
-    await restored.restoreSession();
+      final restored = AssignmentStore(
+        sessionStore: _MemorySessionStore(account: 'student'),
+        notificationService: _RecordingNotificationService(),
+        widgetSnapshotService: _NoopWidgetSnapshotService(),
+      );
+      await restored.restoreSession();
 
-    expect(restored.reminderOffsetsMinutes, [1440, 30, 5]);
-  });
+      expect(restored.reminderOffsetsMinutes, [1440, 30, 5]);
+    },
+  );
 }
 
 Assignment _assignment({required String id}) {

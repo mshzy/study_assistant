@@ -22,11 +22,15 @@ void main() {
     expect(assignments, hasLength(1));
     expect(assignments.first.title, '需求分析报告');
     expect(assignments.first.courseName, '软件工程');
-    expect(assignments.first.deadlineAt.toUtc().toIso8601String(),
-        '2026-05-08T10:00:00.000Z');
+    expect(
+      assignments.first.deadlineAt.toUtc().toIso8601String(),
+      '2026-05-08T10:00:00.000Z',
+    );
     expect(assignments.first.requirementsText, contains('提交 Markdown'));
     expect(
-        assignments.first.submitUrl, 'https://mooc1-api.chaoxing.com/work/123');
+      assignments.first.submitUrl,
+      'https://mooc1-api.chaoxing.com/work/123',
+    );
   });
 
   test('parses Chaoxing stu-work nav items with remaining time', () {
@@ -59,9 +63,10 @@ void main() {
     expect(assignments.first.submitUrl, contains('courseId=111'));
   });
 
-  test('keeps unfinished peer review work and skips completed peer review work',
-      () {
-    const html = '''
+  test(
+    'keeps unfinished peer review work and skips completed peer review work',
+    () {
+      const html = '''
       <ul class="nav">
         <li data="https://mooc1-api.chaoxing.com/work/doHomeWorkNew?courseId=111&clazzId=222&taskrefId=333">
           <p>互评作业</p>
@@ -78,14 +83,15 @@ void main() {
       </ul>
     ''';
 
-    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
-      html,
-      fallbackCourseName: '默认课程',
-      sourcePrefix: 'stu-work',
-      baseUri: Uri.parse('https://mooc1-api.chaoxing.com/work/stu-work'),
-    );
+      final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+        html,
+        fallbackCourseName: '默认课程',
+        sourcePrefix: 'stu-work',
+        baseUri: Uri.parse('https://mooc1-api.chaoxing.com/work/stu-work'),
+      );
 
-    expect(assignments, hasLength(1));
-    expect(assignments.first.id, 'cx:stu-work:334');
-  });
+      expect(assignments, hasLength(1));
+      expect(assignments.first.id, 'cx:stu-work:334');
+    },
+  );
 }

@@ -4,17 +4,22 @@ class SecureSessionStore {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(
-        accessibility: KeychainAccessibility.first_unlock_this_device),
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 
-  Future<void> saveSession(
-      {required String accessToken, required String refreshToken}) async {
+  Future<void> saveSession({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
     await _storage.write(key: 'accessToken', value: accessToken);
     await _storage.write(key: 'refreshToken', value: refreshToken);
   }
 
-  Future<void> saveChaoxingAccount(
-      {required String account, required String password}) async {
+  Future<void> saveChaoxingAccount({
+    required String account,
+    required String password,
+  }) async {
     await _storage.write(key: 'chaoxingAccount', value: account);
     await _storage.write(key: 'chaoxingPassword', value: password);
   }

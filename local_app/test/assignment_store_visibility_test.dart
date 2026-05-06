@@ -18,8 +18,10 @@ void main() {
       _assignment(id: 'completed', status: 'completed'),
     ]);
 
-    expect(store.visibleAssignments.map((item) => item.id),
-        ['pending', 'overdue']);
+    expect(store.visibleAssignments.map((item) => item.id), [
+      'pending',
+      'overdue',
+    ]);
     expect(store.findAssignment('completed')?.id, 'completed');
   });
 }

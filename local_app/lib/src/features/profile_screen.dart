@@ -18,11 +18,12 @@ class ProfileScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('我的',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              '我的',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 16),
             Card(
               child: ListTile(
@@ -47,7 +48,8 @@ class ProfileScreen extends StatelessWidget {
                     leading: Icon(Icons.info_outline),
                     title: Text('关于应用'),
                     subtitle: Text(
-                        '版权归 HY 所有\n微信：HY676-\n开源协议：MIT License\n允许使用、修改和分发，需保留版权与许可声明'),
+                      '版权归 HY 所有\n微信：HY676-\n开源协议：MIT License\n允许使用、修改和分发，需保留版权与许可声明',
+                    ),
                   ),
                   const Divider(height: 1),
                   ListTile(

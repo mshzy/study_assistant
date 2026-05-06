@@ -17,9 +17,9 @@ class AssignmentStore extends ChangeNotifier {
     LocalAssignmentRepository? repository,
     ChaoxingLocalClient? chaoxingClient,
     ReminderRuleStore? reminderRuleStore,
-  })  : repository = repository ?? LocalAssignmentRepository(),
-        chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
-        reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
+  }) : repository = repository ?? LocalAssignmentRepository(),
+       chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
+       reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
 
   final SecureSessionStore sessionStore;
   final LocalNotificationService notificationService;
@@ -49,11 +49,12 @@ class AssignmentStore extends ChangeNotifier {
   List<Assignment> get visibleAssignments =>
       _assignments.where((item) => !item.isCompleted).toList(growable: false);
   Map<String, dynamic>? get syncStatus => {
-        'localOnly': true,
-        'lastSyncedAt': _lastSyncAt?.toIso8601String(),
-        'stale': _lastSyncAt == null ||
-            DateTime.now().difference(_lastSyncAt!).inHours >= 24,
-      };
+    'localOnly': true,
+    'lastSyncedAt': _lastSyncAt?.toIso8601String(),
+    'stale':
+        _lastSyncAt == null ||
+        DateTime.now().difference(_lastSyncAt!).inHours >= 24,
+  };
 
   Assignment? findAssignment(String assignmentId) {
     for (final assignment in _assignments) {
@@ -87,13 +88,17 @@ class AssignmentStore extends ChangeNotifier {
       return;
     }
     await _run(() async {
-      final result =
-          await chaoxingClient.login(account: account, password: password);
+      final result = await chaoxingClient.login(
+        account: account,
+        password: password,
+      );
       if (!result.success) {
         throw StateError(result.message ?? '登录失败');
       }
       await sessionStore.saveChaoxingAccount(
-          account: account, password: password);
+        account: account,
+        password: password,
+      );
       _account = account;
       _agreementAccepted = true;
       _authenticated = true;
@@ -141,8 +146,10 @@ class AssignmentStore extends ChangeNotifier {
 
   Future<void> updateCompletion(String assignmentId, bool completed) async {
     await _run(() async {
-      final updated =
-          await repository.updateCompletion(assignmentId, completed);
+      final updated = await repository.updateCompletion(
+        assignmentId,
+        completed,
+      );
       _assignments
         ..clear()
         ..addAll(updated);
@@ -151,8 +158,9 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   Future<void> saveReminderRule(List<int> offsetsMinutes) async {
-    final normalized =
-        await reminderRuleStore.saveOffsetsMinutes(offsetsMinutes);
+    final normalized = await reminderRuleStore.saveOffsetsMinutes(
+      offsetsMinutes,
+    );
     _reminderOffsetsMinutes = normalized;
     await notificationService.rescheduleAssignments(
       _assignments,

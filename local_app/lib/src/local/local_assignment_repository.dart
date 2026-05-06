@@ -22,10 +22,12 @@ class LocalAssignmentRepository {
     await _migrateCompletedAssignments(prefs, assignments);
     final hiddenCompletedIds = _loadCompletedIds(prefs);
     return assignments
-        .where((assignment) =>
-            !assignment.isCompleted &&
-            !hiddenCompletedIds.contains(assignment.id) &&
-            !_isCompletedPeerReview(assignment))
+        .where(
+          (assignment) =>
+              !assignment.isCompleted &&
+              !hiddenCompletedIds.contains(assignment.id) &&
+              !_isCompletedPeerReview(assignment),
+        )
         .toList();
   }
 
@@ -38,14 +40,18 @@ class LocalAssignmentRepository {
       incoming,
       hiddenCompletedIds: hiddenCompletedIds,
     );
-    await prefs.setString(_assignmentsKey,
-        jsonEncode(merged.map((item) => item.toJson()).toList()));
+    await prefs.setString(
+      _assignmentsKey,
+      jsonEncode(merged.map((item) => item.toJson()).toList()),
+    );
     await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
     return merged;
   }
 
   Future<List<Assignment>> updateCompletion(
-      String assignmentId, bool completed) async {
+    String assignmentId,
+    bool completed,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final hiddenCompletedIds = _loadCompletedIds(prefs);
     if (completed) {
@@ -58,18 +64,22 @@ class LocalAssignmentRepository {
     final assignments = await loadAssignments();
     final updated = completed
         ? assignments
-            .where((assignment) => assignment.id != assignmentId)
-            .toList()
+              .where((assignment) => assignment.id != assignmentId)
+              .toList()
         : assignments
-            .map((assignment) => assignment.id == assignmentId
-                ? assignment.copyWith(
-                    status: _statusFor(assignment.deadlineAt),
-                    clearCompletedAt: true,
-                  )
-                : assignment)
-            .toList();
-    await prefs.setString(_assignmentsKey,
-        jsonEncode(updated.map((item) => item.toJson()).toList()));
+              .map(
+                (assignment) => assignment.id == assignmentId
+                    ? assignment.copyWith(
+                        status: _statusFor(assignment.deadlineAt),
+                        clearCompletedAt: true,
+                      )
+                    : assignment,
+              )
+              .toList();
+    await prefs.setString(
+      _assignmentsKey,
+      jsonEncode(updated.map((item) => item.toJson()).toList()),
+    );
     return updated;
   }
 
@@ -119,13 +129,17 @@ class LocalAssignmentRepository {
   }
 
   static Future<void> _saveCompletedIds(
-      SharedPreferences prefs, Set<String> ids) {
+    SharedPreferences prefs,
+    Set<String> ids,
+  ) {
     final sorted = ids.toList()..sort();
     return prefs.setStringList(_completedIdsKey, sorted);
   }
 
   static Future<void> _migrateCompletedAssignments(
-      SharedPreferences prefs, List<Assignment> assignments) async {
+    SharedPreferences prefs,
+    List<Assignment> assignments,
+  ) async {
     final completedIds = assignments
         .where((assignment) => assignment.isCompleted)
         .map((assignment) => assignment.id)

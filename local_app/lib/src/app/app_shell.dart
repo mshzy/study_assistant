@@ -34,21 +34,25 @@ class AppShell extends StatelessWidget {
         },
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.assignment_outlined),
-              selectedIcon: Icon(Icons.assignment),
-              label: '作业'),
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
+            label: '作业',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.sync_outlined),
-              selectedIcon: Icon(Icons.sync),
-              label: '同步'),
+            icon: Icon(Icons.sync_outlined),
+            selectedIcon: Icon(Icons.sync),
+            label: '同步',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications),
-              label: '提醒'),
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: '提醒',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: '我的'),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我的',
+          ),
         ],
       ),
     );
@@ -86,27 +90,32 @@ class StudyAssistantTheme {
       scaffoldBackgroundColor: paper,
       useMaterial3: true,
       appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          backgroundColor: paper,
-          foregroundColor: ink),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: paper,
+        foregroundColor: ink,
+      ),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: Color(0xFFE7E9E8))),
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Color(0xFFE7E9E8)),
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
       ),
       navigationBarTheme: const NavigationBarThemeData(
-          backgroundColor: Colors.white, indicatorColor: Color(0xFFD8F3EE)),
+        backgroundColor: Colors.white,
+        indicatorColor: Color(0xFFD8F3EE),
+      ),
     );
   }
 }
