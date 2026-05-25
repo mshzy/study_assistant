@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../services/assignment_store.dart';
 import '../services/external_link_service.dart';
@@ -30,6 +31,16 @@ class ProfileScreen extends StatelessWidget {
                 leading: const Icon(Icons.verified_user_outlined),
                 title: Text(store.account ?? '学习通账号'),
                 subtitle: const Text('凭证仅保存在本机安全存储中'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('添加平台账号'),
+                subtitle: const Text('继续绑定学习通或数你最灵账号'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/login?addPlatform=1'),
               ),
             ),
             const SizedBox(height: 12),

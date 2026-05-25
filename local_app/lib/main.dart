@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -12,6 +12,7 @@ import 'src/features/reminder_settings_screen.dart';
 import 'src/features/sync_status_screen.dart';
 import 'src/services/assignment_store.dart';
 import 'src/services/local_notification_service.dart';
+import 'src/services/reminder_rule_store.dart';
 import 'src/services/secure_session_store.dart';
 import 'src/services/widget_snapshot_service.dart';
 
@@ -22,21 +23,30 @@ Future<void> main() async {
   final sessionStore = SecureSessionStore();
   final notificationService = LocalNotificationService();
   final widgetSnapshotService = WidgetSnapshotService();
+  final reminderRuleStore = ReminderRuleStore();
+
   final assignmentStore = AssignmentStore(
     sessionStore: sessionStore,
     notificationService: notificationService,
     widgetSnapshotService: widgetSnapshotService,
+    reminderRuleStore: reminderRuleStore,
   );
+
   await notificationService.initializeSafely();
   await assignmentStore.restoreSession();
 
-  runApp(StudyAssistantApp(store: assignmentStore));
+  runApp(StudyAssistantApp(
+    assignmentStore: assignmentStore,
+  ));
 }
 
 class StudyAssistantApp extends StatefulWidget {
-  const StudyAssistantApp({super.key, required this.store});
+  const StudyAssistantApp({
+    super.key,
+    required this.assignmentStore,
+  });
 
-  final AssignmentStore store;
+  final AssignmentStore assignmentStore;
 
   @override
   State<StudyAssistantApp> createState() => _StudyAssistantAppState();
@@ -44,7 +54,7 @@ class StudyAssistantApp extends StatefulWidget {
 
 class _StudyAssistantAppState extends State<StudyAssistantApp>
     with WidgetsBindingObserver {
-  AssignmentStore get store => widget.store;
+  AssignmentStore get assignmentStore => widget.assignmentStore;
 
   @override
   void initState() {
@@ -61,63 +71,74 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      store.runDueAutoSync();
+      assignmentStore.runDueAutoSync();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final router = GoRouter(
-      refreshListenable: store,
-      initialLocation: store.isAuthenticated ? '/assignments' : '/login',
+      refreshListenable: assignmentStore,
+      initialLocation:
+          assignmentStore.isAuthenticated ? '/assignments' : '/login',
       routes: [
         GoRoute(
           path: '/login',
-          builder: (_, __) => LoginScreen(store: store),
+          builder: (_, state) => LoginScreen(
+            store: assignmentStore,
+            addPlatformMode: state.uri.queryParameters['addPlatform'] == '1',
+          ),
         ),
         ShellRoute(
-          builder: (_, __, child) => AppShell(store: store, child: child),
+          builder: (_, __, child) => AppShell(
+            assignmentStore: assignmentStore,
+            child: child,
+          ),
           routes: [
             GoRoute(
               path: '/assignments',
-              builder: (_, __) => AssignmentListScreen(store: store),
+              builder: (_, __) =>
+                  AssignmentListScreen(store: assignmentStore),
             ),
             GoRoute(
               path: '/assignments/:id',
               builder: (_, state) => AssignmentDetailScreen(
-                store: store,
+                store: assignmentStore,
                 assignmentId: state.pathParameters['id']!,
               ),
             ),
             GoRoute(
               path: '/sync',
-              builder: (_, __) => SyncStatusScreen(store: store),
+              builder: (_, __) => SyncStatusScreen(store: assignmentStore),
             ),
             GoRoute(
               path: '/reminders',
-              builder: (_, __) => ReminderSettingsScreen(store: store),
+              builder: (_, __) => ReminderSettingsScreen(
+                assignmentStore: assignmentStore,
+              ),
             ),
             GoRoute(
               path: '/profile',
-              builder: (_, __) => ProfileScreen(store: store),
+              builder: (_, __) => ProfileScreen(store: assignmentStore),
             ),
           ],
         ),
       ],
       redirect: (_, state) {
-        final normalizedLocation = AppDeepLinks.normalizeIncomingLocation(
-          state.uri,
-        );
+        final normalizedLocation =
+            AppDeepLinks.normalizeIncomingLocation(state.uri);
         if (normalizedLocation != null) {
           return normalizedLocation;
         }
 
-        final loggedIn = store.isAuthenticated;
+        final loggedIn = assignmentStore.isAuthenticated;
         final loggingIn = state.matchedLocation == '/login';
+        final addingPlatform =
+            loggingIn && state.uri.queryParameters['addPlatform'] == '1';
         if (!loggedIn && !loggingIn) {
           return '/login';
         }
-        if (loggedIn && loggingIn) {
+        if (loggedIn && loggingIn && !addingPlatform) {
           return '/assignments';
         }
         return null;

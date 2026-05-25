@@ -109,6 +109,7 @@ class LocalAssignmentRepository {
     final byId = <String, Assignment>{};
     for (final assignment in incoming) {
       if (effectiveHiddenCompletedIds.contains(assignment.id) ||
+          assignment.isCompleted ||
           _isCompletedPeerReview(assignment)) {
         continue;
       }

@@ -25,9 +25,7 @@ class LocalNotificationService {
   Future<void> initializeSafely() async {
     try {
       await initialize();
-    } catch (_) {
-      // Notification support must not block the main app from opening.
-    }
+    } catch (_) {}
   }
 
   Future<void> initialize() async {
@@ -41,14 +39,12 @@ class LocalNotificationService {
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'assignment_deadlines',
-            '作业截止提醒',
-            description: '学习通作业截止前提醒',
-            importance: Importance.high,
-          ),
-        );
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+          'assignment_deadlines',
+          '作业截止提醒',
+          description: '学习通作业截止前提醒',
+          importance: Importance.high,
+        ));
     await _requestNotificationPermission();
     await _requestExactAlarmPermission();
   }
@@ -59,17 +55,42 @@ class LocalNotificationService {
   }) async {
     try {
       await _requestNotificationPermission();
-      await _plugin.cancelAll();
+      await _cancelAssignments();
       final offsets = ReminderRuleStore.normalizeOffsets(offsetsMinutes);
       for (final assignment in assignments.where((item) => !item.isCompleted)) {
         for (final offset in offsets) {
-          await _scheduleReminder(assignment, offset);
+          await _scheduleAssignmentReminder(assignment, offset);
         }
       }
-    } catch (_) {
-      // Notification scheduling can fail on some Android ROMs or when the
-      // plugin cannot read old scheduled alarms. The app should still open.
+    } catch (_) {}
+  }
+
+  Future<void> _cancelAssignments() async {
+    final active = await _plugin.pendingNotificationRequests();
+    for (final request in active) {
+      if (request.payload?.startsWith('a:') ?? false) {
+        await _plugin.cancel(request.id);
+      }
     }
+  }
+
+  Future<void> _scheduleAssignmentReminder(
+    Assignment assignment,
+    int offset,
+  ) async {
+    final notifyAt = assignment.deadlineAt.subtract(Duration(minutes: offset));
+    if (notifyAt.difference(DateTime.now()).isNegative) {
+      return;
+    }
+    await _zonedSchedule(
+      id: Object.hash('a', assignment.id, offset),
+      channelId: 'assignment_deadlines',
+      title: '作业即将截止',
+      body:
+          '${assignment.courseName} · ${assignment.title}，${formatDeadlineRemainingText(offset)}',
+      notifyAt: notifyAt,
+      payload: 'studyassistant://assignments/${assignment.id}',
+    );
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -78,8 +99,7 @@ class LocalNotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
     await _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
@@ -90,47 +110,49 @@ class LocalNotificationService {
         ?.requestExactAlarmsPermission();
   }
 
-  Future<void> _scheduleReminder(
-    Assignment assignment,
-    int offsetMinutes,
-  ) async {
-    final notifyAt = assignment.deadlineAt.subtract(
-      Duration(minutes: offsetMinutes),
-    );
-    final remaining = notifyAt.difference(DateTime.now());
-    if (remaining.isNegative) {
-      return;
-    }
-
-    await _zonedSchedule(
-      assignment,
-      offsetMinutes,
-      notifyAt,
-      AndroidScheduleMode.exactAllowWhileIdle,
+  Future<void> _zonedSchedule({
+    required int id,
+    required String channelId,
+    required String title,
+    required String body,
+    required DateTime notifyAt,
+    required String payload,
+  }) async {
+    await _trySchedule(
+      id: id,
+      channelId: channelId,
+      title: title,
+      body: body,
+      notifyAt: notifyAt,
+      payload: payload,
+      mode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
-  Future<void> _zonedSchedule(
-    Assignment assignment,
-    int offsetMinutes,
-    DateTime notifyAt,
-    AndroidScheduleMode scheduleMode,
-  ) async {
+  Future<void> _trySchedule({
+    required int id,
+    required String channelId,
+    required String title,
+    required String body,
+    required DateTime notifyAt,
+    required String payload,
+    required AndroidScheduleMode mode,
+  }) async {
     try {
       await _plugin.zonedSchedule(
-        Object.hash(assignment.id, offsetMinutes),
-        '作业即将截止',
-        '${assignment.courseName} · ${assignment.title}，${formatDeadlineRemainingText(offsetMinutes)}',
+        id,
+        title,
+        body,
         tz.TZDateTime.from(notifyAt, tz.local),
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
-            'assignment_deadlines',
+            channelId,
             '作业截止提醒',
             importance: Importance.high,
             priority: Priority.high,
             category: AndroidNotificationCategory.reminder,
             visibility: NotificationVisibility.public,
-            ticker: '作业即将截止',
+            ticker: title,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -140,18 +162,21 @@ class LocalNotificationService {
             interruptionLevel: InterruptionLevel.active,
           ),
         ),
-        androidScheduleMode: scheduleMode,
+        androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        payload: 'studyassistant://assignments/${assignment.id}',
+        payload: payload,
       );
     } catch (_) {
-      if (scheduleMode == AndroidScheduleMode.exactAllowWhileIdle) {
-        await _zonedSchedule(
-          assignment,
-          offsetMinutes,
-          notifyAt,
-          AndroidScheduleMode.inexactAllowWhileIdle,
+      if (mode == AndroidScheduleMode.exactAllowWhileIdle) {
+        await _trySchedule(
+          id: id,
+          channelId: channelId,
+          title: title,
+          body: body,
+          notifyAt: notifyAt,
+          payload: payload,
+          mode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       }
     }

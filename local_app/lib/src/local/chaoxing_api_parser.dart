@@ -1,4 +1,4 @@
-import '../models/assignment.dart';
+﻿import '../models/assignment.dart';
 
 class ChaoxingCourseRef {
   const ChaoxingCourseRef({
@@ -125,7 +125,10 @@ class ChaoxingApiParser {
                     activity['remark'],
               ) ??
               title,
-          status: 'pending',
+          status: Assignment.statusFromChaoxing(
+                _stringValue(activity['statusName'] ?? activity['stateName']),
+                _stringValue(activity['status'] ?? activity['state']),
+              ),
           submitUrl: _activityUrl(course, id),
           lastSyncedAt: parsedAt,
         ),
@@ -133,6 +136,111 @@ class ChaoxingApiParser {
     }
     return assignments;
   }
+
+  // ---------- Exam parsing ----------
+
+  static List<Assignment> parseActivityExamAssignments(
+    dynamic payload,
+    ChaoxingCourseRef course, {
+    DateTime? now,
+  }) {
+    final parsedAt = now ?? DateTime.now();
+    final root = _asMap(payload);
+    if (root == null) {
+      return [];
+    }
+
+    final data = _asMap(root['data']) ?? root;
+    final activities = _asList(data['activeList']) ??
+        _asList(data['list']) ??
+        _asList(data['activities']) ??
+        const [];
+    final assignments = <Assignment>[];
+    for (final item in activities) {
+      final activity = _asMap(item);
+      if (activity == null || !_looksLikeExam(activity)) {
+        continue;
+      }
+      final id = _stringValue(
+        activity['id'] ?? activity['activeId'] ?? activity['aid'],
+      );
+      final title = _stringValue(
+        activity['nameOne'] ??
+            activity['name'] ??
+            activity['title'] ??
+            activity['activeName'],
+      );
+      final examDate = _deadlineFrom(activity);
+      if (id == null || title == null || title.isEmpty || examDate == null) {
+        continue;
+      }
+      // Skip exams that are more than 30 days in the past
+      if (examDate.isBefore(parsedAt.subtract(const Duration(days: 30)))) {
+        continue;
+      }
+
+      final location = _stringValue(
+        activity['location'] ??
+            activity['address'] ??
+            activity['place'] ??
+            activity['examPlace'],
+      );
+
+      final durationStr = _stringValue(
+        activity['duration'] ??
+            activity['examDuration'] ??
+            activity['timeLong'],
+      );
+      final durationMinutes = durationStr != null ? int.tryParse(durationStr) : null;
+
+      final completed = examDate.isBefore(parsedAt);
+
+      assignments.add(
+        Assignment(
+          id: 'cx:exam:$id',
+          courseName: course.courseName,
+          title: title,
+          deadlineAt: examDate,
+          requirementsText: _examRequirementsText(
+            title: title,
+            location: location,
+            durationMinutes: durationMinutes,
+            notes: _stringValue(activity['remark'] ?? activity['description']),
+          ),
+          status: completed ? 'completed' : 'pending',
+          submitUrl: _activityUrl(course, id),
+          completedAt: completed ? examDate : null,
+          lastSyncedAt: parsedAt,
+        ),
+      );
+    }
+    return assignments;
+  }
+
+  static bool _looksLikeExam(Map<String, dynamic> activity) {
+    final type = _stringValue(
+      activity['activeType'] ?? activity['type'] ?? activity['activeTypeName'],
+    );
+    final name = _stringValue(
+          activity['nameOne'] ??
+              activity['name'] ??
+              activity['title'] ??
+              activity['activeName'],
+        ) ??
+        '';
+    // Exam activity types in Chaoxing: 49 is typically exam
+    if (name.contains('考试') ||
+        name.contains('考核') ||
+        name.contains('期末') ||
+        name.contains('期中') ||
+        name.toLowerCase().contains('exam')) {
+      return true;
+    }
+    // Activity type 49 is exam, 50 is some variants
+    return const {'49', '50'}.contains(type);
+  }
+
+  // ---------- Shared ----------
 
   static bool _looksLikeHomework(Map<String, dynamic> activity) {
     final type = _stringValue(
@@ -145,6 +253,10 @@ class ChaoxingApiParser {
               activity['activeName'],
         ) ??
         '';
+    // Don't classify exam-type activities as homework
+    if (_looksLikeExam(activity)) {
+      return false;
+    }
     if (name.contains('作业') ||
         name.contains('测验') ||
         name.toLowerCase().contains('homework')) {
@@ -237,6 +349,21 @@ class ChaoxingApiParser {
       'activeId': activeId,
       if (course.cpi != null) 'cpi': course.cpi!,
     }).toString();
+  }
+
+  static String _examRequirementsText({
+    required String title,
+    String? location,
+    int? durationMinutes,
+    String? notes,
+  }) {
+    final parts = <String>[
+      '考试：$title',
+      if (location != null && location.isNotEmpty) '地点：$location',
+      if (durationMinutes != null) '时长：$durationMinutes 分钟',
+      if (notes != null && notes.isNotEmpty) notes,
+    ];
+    return parts.join('\n');
   }
 
   static Map<String, dynamic>? _firstMapFrom(dynamic value) {

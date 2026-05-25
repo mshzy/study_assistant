@@ -67,6 +67,15 @@ void main() {
 class _MemorySessionStore extends SecureSessionStore {
   @override
   Future<String?> readChaoxingAccount() async => 'student';
+
+  @override
+  Future<String?> readShuniZuilingAccount() async => null;
+
+  @override
+  Future<String?> readShuniZuilingPassword() async => null;
+
+  @override
+  Future<String?> readShuniZuilingSchoolCode() async => null;
 }
 
 class _NoopNotificationService extends LocalNotificationService {

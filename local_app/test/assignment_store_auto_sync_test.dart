@@ -152,6 +152,15 @@ class _MemorySessionStore extends SecureSessionStore {
 
   @override
   Future<String?> readChaoxingPassword() async => password;
+
+  @override
+  Future<String?> readShuniZuilingAccount() async => null;
+
+  @override
+  Future<String?> readShuniZuilingPassword() async => null;
+
+  @override
+  Future<String?> readShuniZuilingSchoolCode() async => null;
 }
 
 class _NoopWidgetSnapshotService extends WidgetSnapshotService {

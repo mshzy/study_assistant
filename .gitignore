@@ -20,3 +20,4 @@ GeneratedPluginRegistrant.java
 *.iml
 *.jks
 *.keystore
+local_app/android/key.properties

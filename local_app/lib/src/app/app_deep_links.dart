@@ -24,12 +24,15 @@ class AppDeepLinks {
     if (uri.pathSegments.isEmpty) {
       return '/assignments';
     }
+
     if (uri.pathSegments.first != 'assignments') {
       return '/assignments';
     }
+
     if (uri.pathSegments.length == 1) {
       return '/assignments';
     }
+
     return assignmentLocation(uri.pathSegments.skip(1).join('/'));
   }
 }

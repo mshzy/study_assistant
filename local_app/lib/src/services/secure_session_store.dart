@@ -30,6 +30,28 @@ class SecureSessionStore {
   Future<String?> readChaoxingPassword() =>
       _storage.read(key: 'chaoxingPassword');
 
+  Future<void> saveShuniZuilingAccount({
+    required String schoolUserLocalId,
+    required String password,
+    required String schoolCode,
+  }) async {
+    await _storage.write(
+      key: 'shuniZuilingSchoolUserLocalId',
+      value: schoolUserLocalId,
+    );
+    await _storage.write(key: 'shuniZuilingPassword', value: password);
+    await _storage.write(key: 'shuniZuilingSchoolCode', value: schoolCode);
+  }
+
+  Future<String?> readShuniZuilingAccount() =>
+      _storage.read(key: 'shuniZuilingSchoolUserLocalId');
+
+  Future<String?> readShuniZuilingPassword() =>
+      _storage.read(key: 'shuniZuilingPassword');
+
+  Future<String?> readShuniZuilingSchoolCode() =>
+      _storage.read(key: 'shuniZuilingSchoolCode');
+
   Future<String?> readAccessToken() => _storage.read(key: 'accessToken');
 
   Future<String?> readRefreshToken() => _storage.read(key: 'refreshToken');

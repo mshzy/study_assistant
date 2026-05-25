@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../local/chaoxing_assignment_parser.dart';
 import '../local/chaoxing_local_client.dart';
 import '../local/local_assignment_repository.dart';
+import '../local/shuni_zuiling_local_client.dart';
 import '../models/assignment.dart';
 import 'local_notification_service.dart';
 import 'reminder_rule_store.dart';
@@ -22,9 +23,12 @@ class AssignmentStore extends ChangeNotifier {
     required this.widgetSnapshotService,
     LocalAssignmentRepository? repository,
     ChaoxingLocalClient? chaoxingClient,
+    ShuniZuilingLocalClient? shuniZuilingClient,
     ReminderRuleStore? reminderRuleStore,
   })  : repository = repository ?? LocalAssignmentRepository(),
         chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
+        shuniZuilingClient =
+            shuniZuilingClient ?? ShuniZuilingLocalClient(),
         reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
 
   final SecureSessionStore sessionStore;
@@ -32,6 +36,7 @@ class AssignmentStore extends ChangeNotifier {
   final WidgetSnapshotService widgetSnapshotService;
   final LocalAssignmentRepository repository;
   final ChaoxingLocalClient chaoxingClient;
+  final ShuniZuilingLocalClient shuniZuilingClient;
   final ReminderRuleStore reminderRuleStore;
 
   bool _authenticated = false;
@@ -39,10 +44,13 @@ class AssignmentStore extends ChangeNotifier {
   bool _agreementAccepted = false;
   String? _error;
   String? _account;
+  String? _shuniZuilingAccount;
+  String? _shuniZuilingSchoolCode;
   DateTime? _lastSyncAt;
   List<int> _reminderOffsetsMinutes = ReminderRuleStore.defaultOffsetsMinutes;
   int _autoSyncIntervalMinutes = defaultAutoSyncIntervalMinutes;
   final List<Assignment> _assignments = [];
+  final List<ShuniZuilingSchool> _shuniZuilingSchools = [];
   Timer? _autoSyncTimer;
   bool _autoSyncRunning = false;
 
@@ -50,7 +58,24 @@ class AssignmentStore extends ChangeNotifier {
   bool get isLoading => _loading;
   bool get agreementAccepted => _agreementAccepted;
   String? get error => _error;
-  String? get account => _account;
+  String? get account {
+    if (_account != null && _shuniZuilingAccount == null) {
+      return _account;
+    }
+    final labels = <String>[
+      if (_account != null) '学习通：$_account',
+      if (_shuniZuilingAccount != null) '数你最灵：$_shuniZuilingAccount',
+    ];
+    if (labels.isEmpty) {
+      return null;
+    }
+    return labels.join('\n');
+  }
+
+  String? get chaoxingAccount => _account;
+  String? get shuniZuilingAccount => _shuniZuilingAccount;
+  List<ShuniZuilingSchool> get shuniZuilingSchools =>
+      List.unmodifiable(_shuniZuilingSchools);
   DateTime? get lastSyncAt => _lastSyncAt;
   int get autoSyncIntervalMinutes => _autoSyncIntervalMinutes;
   List<int> get reminderOffsetsMinutes =>
@@ -76,7 +101,10 @@ class AssignmentStore extends ChangeNotifier {
 
   Future<void> restoreSession() async {
     _account = await sessionStore.readChaoxingAccount();
-    _authenticated = _account != null;
+    _shuniZuilingAccount = await sessionStore.readShuniZuilingAccount();
+    _shuniZuilingSchoolCode =
+        await sessionStore.readShuniZuilingSchoolCode();
+    _authenticated = _account != null || _shuniZuilingAccount != null;
     _reminderOffsetsMinutes = await reminderRuleStore.loadOffsetsMinutes();
     _autoSyncIntervalMinutes = await _loadAutoSyncIntervalMinutes();
     _assignments
@@ -120,6 +148,61 @@ class AssignmentStore extends ChangeNotifier {
         _error = _friendlyError(error);
       }
     });
+  }
+
+  Future<void> loginShuniZuiling({
+    required String schoolUserLocalId,
+    required String password,
+    required String schoolCode,
+    required bool agreementAccepted,
+  }) async {
+    if (!agreementAccepted) {
+      _error = '请先阅读并同意服务协议和隐私协议';
+      notifyListeners();
+      return;
+    }
+    await _run(() async {
+      final normalizedAccount = schoolUserLocalId.trim();
+      final normalizedSchoolCode = schoolCode.trim();
+      final result = await shuniZuilingClient.login(
+        schoolUserLocalId: normalizedAccount,
+        password: password,
+        schoolCode: normalizedSchoolCode,
+      );
+      if (!result.success) {
+        throw StateError(result.message ?? '数你最灵登录失败');
+      }
+      await sessionStore.saveShuniZuilingAccount(
+        schoolUserLocalId: normalizedAccount,
+        password: password,
+        schoolCode: normalizedSchoolCode,
+      );
+      _shuniZuilingAccount = normalizedAccount;
+      _shuniZuilingSchoolCode = normalizedSchoolCode;
+      _agreementAccepted = true;
+      _authenticated = true;
+      _restartAutoSyncTimer();
+      try {
+        await _syncAssignmentsBody(refreshSession: false);
+      } catch (error) {
+        _error = _friendlyError(error);
+      }
+    });
+  }
+
+  Future<void> loadShuniZuilingSchools() async {
+    if (_shuniZuilingSchools.isNotEmpty) {
+      return;
+    }
+    try {
+      final schools = await shuniZuilingClient.fetchSchools();
+      _shuniZuilingSchools
+        ..clear()
+        ..addAll(schools);
+      notifyListeners();
+    } catch (_) {
+      // Manual retries are enough here; school loading should not block login UI.
+    }
   }
 
   Future<void> syncAssignments() async {
@@ -218,6 +301,8 @@ class AssignmentStore extends ChangeNotifier {
     await reminderRuleStore.clear();
     _authenticated = false;
     _account = null;
+    _shuniZuilingAccount = null;
+    _shuniZuilingSchoolCode = null;
     _assignments.clear();
     _lastSyncAt = null;
     _restartAutoSyncTimer();
@@ -243,8 +328,33 @@ class AssignmentStore extends ChangeNotifier {
   Future<void> _syncAssignmentsBody({bool refreshSession = true}) async {
     if (refreshSession) {
       await _refreshChaoxingSession();
+      await _refreshShuniZuilingSession();
     }
-    final incoming = await chaoxingClient.fetchAssignments();
+    final incoming = <Assignment>[];
+    Object? firstError;
+    final sources = <Future<List<Assignment>> Function()>[];
+    if (_account != null) {
+      sources.add(chaoxingClient.fetchAssignments);
+    }
+    final shuniStudentId = _shuniZuilingStudentId;
+    if (shuniStudentId != null) {
+      sources.add(
+        () => shuniZuilingClient.fetchAssignments(studentId: shuniStudentId),
+      );
+    }
+    for (final source in sources) {
+      try {
+        incoming.addAll(await source());
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+    if (incoming.isEmpty && firstError != null) {
+      throw firstError;
+    }
+    if (incoming.isEmpty) {
+      throw StateError('没有获取到作业。学习通或数你最灵当前可能没有未完成作业，或学校接口暂时不可用。');
+    }
     final merged = await repository.mergeAndSave(incoming);
     _assignments
       ..clear()
@@ -269,6 +379,42 @@ class AssignmentStore extends ChangeNotifier {
     if (!result.success) {
       throw StateError(result.message ?? '登录失败');
     }
+  }
+
+  Future<void> _refreshShuniZuilingSession() async {
+    final account =
+        _shuniZuilingAccount ?? await sessionStore.readShuniZuilingAccount();
+    final password = await sessionStore.readShuniZuilingPassword();
+    final schoolCode =
+        _shuniZuilingSchoolCode ?? await sessionStore.readShuniZuilingSchoolCode();
+    if (account == null ||
+        account.trim().isEmpty ||
+        password == null ||
+        password.isEmpty ||
+        schoolCode == null ||
+        schoolCode.trim().isEmpty) {
+      return;
+    }
+    final result = await shuniZuilingClient.login(
+      schoolUserLocalId: account,
+      password: password,
+      schoolCode: schoolCode,
+    );
+    if (!result.success) {
+      throw StateError(result.message ?? '数你最灵登录失败');
+    }
+  }
+
+  String? get _shuniZuilingStudentId {
+    final account = _shuniZuilingAccount;
+    final schoolCode = _shuniZuilingSchoolCode;
+    if (account == null ||
+        account.trim().isEmpty ||
+        schoolCode == null ||
+        schoolCode.trim().isEmpty) {
+      return null;
+    }
+    return '${schoolCode.trim()}-${account.trim()}';
   }
 
   Future<int> _loadAutoSyncIntervalMinutes() async {
@@ -326,10 +472,10 @@ class AssignmentStore extends ChangeNotifier {
       return '作业刷新失败，请检查网络后再试。';
     }
     if (raw.contains('没有获取到作业')) {
-      return '暂时没有刷新到作业。如果你确认学习通里有未完成作业，请稍后再试。';
+      return '暂时没有刷新到作业。如果你确认平台里有未完成作业，请稍后再试。';
     }
     if (raw.contains('登录失败')) {
-      return '登录失败，请检查学习通账号和密码。';
+      return '登录失败，请检查账号和密码。';
     }
     if (raw.contains('同步失败')) {
       return '登录成功，但作业刷新暂时失败。你可以稍后在同步页重新刷新。';

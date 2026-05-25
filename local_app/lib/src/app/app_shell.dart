@@ -1,12 +1,16 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/assignment_store.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.store, required this.child});
+  const AppShell({
+    super.key,
+    required this.assignmentStore,
+    required this.child,
+  });
 
-  final AssignmentStore store;
+  final AssignmentStore assignmentStore;
   final Widget child;
 
   @override

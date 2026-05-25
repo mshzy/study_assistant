@@ -11,30 +11,11 @@ import 'package:study_assistant_mobile/src/services/widget_snapshot_service.dart
 void main() {
   testWidgets('shows permission controls needed for reminders', (tester) async {
     SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final notifService = _NoopNotificationService();
+    final sessionStore = _MemorySessionStore();
     final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(),
-      notificationService: _NoopNotificationService(),
-      widgetSnapshotService: _NoopWidgetSnapshotService(),
-    );
-    addTearDown(store.dispose);
-    await store.restoreSession();
-
-    await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: ReminderSettingsScreen(store: store))),
-    );
-
-    expect(find.text('提醒权限'), findsOneWidget);
-    expect(find.text('通知权限'), findsOneWidget);
-    expect(find.text('精确闹钟'), findsOneWidget);
-    expect(find.text('锁屏提醒'), findsOneWidget);
-    expect(find.text('后台与自启动'), findsOneWidget);
-  });
-
-  testWidgets('adds and removes a custom reminder time', (tester) async {
-    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
-    final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(),
-      notificationService: _NoopNotificationService(),
+      sessionStore: sessionStore,
+      notificationService: notifService,
       widgetSnapshotService: _NoopWidgetSnapshotService(),
     );
     addTearDown(store.dispose);
@@ -42,7 +23,37 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: ReminderSettingsScreen(store: store)),
+        home: Scaffold(
+          body: ReminderSettingsScreen(assignmentStore: store),
+        ),
+      ),
+    );
+
+    expect(find.text('提醒权限'), findsOneWidget);
+    expect(find.text('通知权限'), findsOneWidget);
+    expect(find.text('精确闹钟'), findsOneWidget);
+    expect(find.text('锁屏提醒'), findsOneWidget);
+    expect(find.text('后台与自启动'), findsOneWidget);
+    expect(find.text('保存后会重新安排所有未完成作业的本地通知，自定义提醒支持精确到分钟'), findsOneWidget);
+  });
+
+  testWidgets('adds and removes a custom reminder time', (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final notifService = _NoopNotificationService();
+    final sessionStore = _MemorySessionStore();
+    final store = AssignmentStore(
+      sessionStore: sessionStore,
+      notificationService: notifService,
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReminderSettingsScreen(assignmentStore: store),
+        ),
       ),
     );
 
@@ -62,16 +73,22 @@ void main() {
 
   testWidgets('adds a custom reminder with hours and minutes', (tester) async {
     SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final notifService = _NoopNotificationService();
+    final sessionStore = _MemorySessionStore();
     final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(),
-      notificationService: _NoopNotificationService(),
+      sessionStore: sessionStore,
+      notificationService: notifService,
       widgetSnapshotService: _NoopWidgetSnapshotService(),
     );
     addTearDown(store.dispose);
     await store.restoreSession();
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: ReminderSettingsScreen(store: store))),
+      MaterialApp(
+        home: Scaffold(
+          body: ReminderSettingsScreen(assignmentStore: store),
+        ),
+      ),
     );
 
     await tester.ensureVisible(find.text('添加'));
@@ -96,6 +113,15 @@ class _NoopNotificationService extends LocalNotificationService {
 class _MemorySessionStore extends SecureSessionStore {
   @override
   Future<String?> readChaoxingAccount() async => 'student';
+
+  @override
+  Future<String?> readShuniZuilingAccount() async => null;
+
+  @override
+  Future<String?> readShuniZuilingPassword() async => null;
+
+  @override
+  Future<String?> readShuniZuilingSchoolCode() async => null;
 }
 
 class _NoopWidgetSnapshotService extends WidgetSnapshotService {

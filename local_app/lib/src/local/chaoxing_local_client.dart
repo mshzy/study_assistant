@@ -69,12 +69,14 @@ class ChaoxingLocalClient {
     assignments.addAll(await _fetchActivityAssignments());
     assignments.addAll(await _fetchWorkPages());
 
-    final deduped = _dedupe(assignments);
+    final deduped = _dedupeAssignments(assignments);
     if (deduped.isEmpty) {
       throw StateError('没有获取到作业。学习通当前可能没有未完成作业，或学校接口暂时不可用。');
     }
     return deduped;
   }
+
+  // ---------- Assignment fetching ----------
 
   Future<List<Assignment>> _fetchActivityAssignments() async {
     final mcode =
@@ -110,6 +112,9 @@ class ChaoxingLocalClient {
       }
       assignments.addAll(
         ChaoxingApiParser.parseActivityAssignments(response.data, course),
+      );
+      assignments.addAll(
+        ChaoxingApiParser.parseActivityExamAssignments(response.data, course),
       );
     }
     return assignments;
@@ -150,6 +155,8 @@ class ChaoxingLocalClient {
     }
     return assignments;
   }
+
+  // ---------- Shared ----------
 
   Future<Response<T>?> _safeGet<T>(
     String uri, {
@@ -201,7 +208,7 @@ class ChaoxingLocalClient {
 
   String? _readCookie(String name) => _cookies[name];
 
-  List<Assignment> _dedupe(List<Assignment> assignments) {
+  List<Assignment> _dedupeAssignments(List<Assignment> assignments) {
     final byId = <String, Assignment>{};
     for (final assignment in assignments) {
       byId[assignment.id] = assignment;

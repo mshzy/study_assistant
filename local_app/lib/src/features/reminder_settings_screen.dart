@@ -6,11 +6,11 @@ import '../services/permission_settings_service.dart';
 class ReminderSettingsScreen extends StatefulWidget {
   const ReminderSettingsScreen({
     super.key,
-    required this.store,
+    required this.assignmentStore,
     this.permissionSettingsService = const PermissionSettingsService(),
   });
 
-  final AssignmentStore store;
+  final AssignmentStore assignmentStore;
   final PermissionSettingsService permissionSettingsService;
 
   @override
@@ -33,7 +33,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _offsets.addAll(widget.store.reminderOffsetsMinutes);
+    _offsets.addAll(widget.assignmentStore.reminderOffsetsMinutes);
   }
 
   @override
@@ -57,9 +57,10 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         children: [
           Text(
             '提醒设置',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(context)
+                .textTheme
+                .headlineMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
@@ -69,9 +70,10 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
           const SizedBox(height: 16),
           Text(
             '提醒权限',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
           Card(
@@ -80,7 +82,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.notifications_active_outlined),
                   title: const Text('通知权限'),
-                  subtitle: const Text('允许系统通知，关闭后不会弹出作业提醒'),
+                  subtitle: const Text('允许系统通知，关闭后不会弹出提醒'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _openPermissionSettings(
                     widget.permissionSettingsService.openNotificationSettings,
@@ -139,9 +141,10 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
           const SizedBox(height: 16),
           Text(
             '自定义提醒',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
           Row(
@@ -169,7 +172,9 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
               ),
               const SizedBox(width: 8),
               FilledButton(
-                  onPressed: _addCustomOffset, child: const Text('添加')),
+                onPressed: _addCustomOffset,
+                child: const Text('添加'),
+              ),
             ],
           ),
           if (customOffsets.isNotEmpty) ...[
@@ -240,30 +245,26 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await widget.store.saveReminderRule(_offsets.toList());
-    if (!mounted) {
-      return;
-    }
+    final offsetsList = _offsets.toList();
+    await widget.assignmentStore.saveReminderRule(offsetsList);
+    if (!mounted) return;
     setState(() => _saving = false);
-    _showMessage('提醒时间已保存');
+    _showMessage('提醒时间已保存，作业通知已更新');
   }
 
   Future<void> _openPermissionSettings(
     Future<bool> Function() openSettings,
   ) async {
     final opened = await openSettings();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     if (!opened) {
-      _showMessage('无法打开系统设置，请在手机设置里搜索“学习通作业提醒”');
+      _showMessage('无法打开系统设置，请在手机设置里搜索"学习通作业提醒"');
     }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _labelFor(int offsetMinutes) {

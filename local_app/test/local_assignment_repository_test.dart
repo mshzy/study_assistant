@@ -56,6 +56,26 @@ void main() {
     expect(merged, isEmpty);
   });
 
+  test('mergeAndSave hides assignments that are waiting for review', () async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = LocalAssignmentRepository();
+    final reviewing = Assignment(
+      id: 'cx:activity:reviewing',
+      courseName: '大学英语',
+      title: '章节作业',
+      deadlineAt: DateTime.parse('2026-05-09T10:00:00.000Z'),
+      requirementsText: '完成后提交',
+      status: 'submitted',
+      lastSyncedAt: DateTime.parse('2026-05-05T11:00:00.000Z'),
+    );
+
+    final afterSync = await repository.mergeAndSave([reviewing]);
+    final afterReload = await repository.loadAssignments();
+
+    expect(afterSync, isEmpty);
+    expect(afterReload, isEmpty);
+  });
+
   test(
     'mergeAssignments keeps unfinished peer review and filters completed peer review',
     () {

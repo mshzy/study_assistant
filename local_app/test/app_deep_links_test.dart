@@ -26,6 +26,14 @@ void main() {
     expect(location, isNull);
   });
 
+  test('redirects legacy exam links to assignments', () {
+    final location = AppDeepLinks.normalizeIncomingLocation(
+      Uri.parse('studyassistant:///exams/cx:exam:52795811'),
+    );
+
+    expect(location, '/assignments');
+  });
+
   test('builds canonical assignment widget uri', () {
     expect(
       AppDeepLinks.assignmentUri('cx:default:52795811'),

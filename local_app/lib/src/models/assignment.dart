@@ -74,6 +74,28 @@ class Assignment {
     );
   }
 
-  bool get isCompleted => status == 'completed';
-  bool get isOverdue => status == 'overdue';
+  /// 已提交、待批阅、已完成都视为完成状态
+  bool get isCompleted =>
+      status == 'completed' ||
+      status == 'submitted' ||
+      status == 'reviewing';
+
+  bool get isOverdue =>
+      !isCompleted && deadlineAt.isBefore(DateTime.now());
+
+  /// 从学习通返回的状态文本推断内部状态
+  static String statusFromChaoxing(String? statusName, String? stateText) {
+    final text = [
+      statusName ?? '',
+      stateText ?? '',
+    ].join(' ').toLowerCase();
+    // 待批阅、已提交、已完成 → completed
+    if (RegExp(r'(待批阅|已提交|已完成|待批改|已批阅|已批改|已评价|通过)').hasMatch(text)) {
+      return 'submitted';
+    }
+    if (RegExp(r'(进行中|未完成|未提交|待完成|未开始)').hasMatch(text)) {
+      return 'pending';
+    }
+    return 'pending';
+  }
 }

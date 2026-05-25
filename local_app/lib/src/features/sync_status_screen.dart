@@ -50,7 +50,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                '本地同步',
+                '作业数据同步',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -62,7 +62,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '刷新时会用已保存的学习通账号密码获取作业和最新截止时间，并重新安排提醒。',
+                '刷新时会用已保存的账号信息获取学习通和数你最灵作业，并重新安排提醒。',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -71,7 +71,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
                   leading: Icon(
                     stale ? Icons.warning_amber : Icons.check_circle_outline,
                   ),
-                  title: Text(stale ? '建议刷新学习通作业' : '本地数据较新'),
+                  title: Text(stale ? '建议刷新作业数据' : '本地数据较新'),
                   subtitle: Text(
                     lastSyncAt == null
                         ? '尚未同步'
@@ -188,7 +188,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
               FilledButton.icon(
                 onPressed: store.isLoading ? null : store.syncAssignments,
                 icon: const Icon(Icons.sync),
-                label: Text(store.isLoading ? '正在刷新...' : '刷新学习通作业'),
+                label: Text(store.isLoading ? '正在刷新...' : '刷新作业数据'),
               ),
               if (store.error != null) ...[
                 const SizedBox(height: 12),

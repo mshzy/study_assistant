@@ -54,7 +54,7 @@ class AssignmentListScreen extends StatelessWidget {
                 const SizedBox(height: 12),
               ],
               if (assignments.isEmpty)
-                const _EmptyAssignments()
+                _EmptyAssignments(isAuthenticated: store.isAuthenticated)
               else
                 ...assignments.map(
                   (assignment) => _AssignmentCard(assignment: assignment),
@@ -99,12 +99,10 @@ class _AssignmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deadline = DateFormat(
-      'M月d日 HH:mm',
-      'zh_CN',
-    ).format(assignment.deadlineAt);
-    final urgent =
-        assignment.deadlineAt.difference(DateTime.now()).inHours <= 24;
+    final deadline = DateFormat('M月d日 HH:mm', 'zh_CN').format(
+      assignment.deadlineAt,
+    );
+    final urgent = assignment.deadlineAt.difference(DateTime.now()).inHours <= 24;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -165,7 +163,9 @@ class _AssignmentCard extends StatelessWidget {
 }
 
 class _EmptyAssignments extends StatelessWidget {
-  const _EmptyAssignments();
+  const _EmptyAssignments({required this.isAuthenticated});
+
+  final bool isAuthenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -184,13 +184,18 @@ class _EmptyAssignments extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '现在没有待完成作业',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            isAuthenticated ? '现在没有待完成作业' : '登录后查看作业',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          const Text('绑定学习通账号后，作业会出现在这里。'),
+          Text(
+            isAuthenticated
+                ? '同步后，学习通和数你最灵的待完成作业都会显示在这里。'
+                : '登录后，作业会出现在这里。',
+          ),
         ],
       ),
     );

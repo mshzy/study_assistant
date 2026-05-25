@@ -120,12 +120,19 @@ class ChaoxingAssignmentParser {
       title: _decodeEntities(_stripTags(title)).trim(),
       deadlineAt: deadline.value,
       requirementsText: _extractRequirement(block, cleanText),
-      status: 'pending',
+      status: _inferStatus(cleanText),
       submitUrl: sourceUrl == null
           ? null
           : baseUri.resolve(_decodeEntities(sourceUrl)).toString(),
       lastSyncedAt: now,
     );
+  }
+
+  static String _inferStatus(String text) {
+    if (RegExp(r'(待批阅|待批改|已提交|已完成|已批阅|已批改|已评价|通过|已做完)').hasMatch(text)) {
+      return 'submitted';
+    }
+    return 'pending';
   }
 
   static _ParsedDeadline? _extractDeadline(String cleanText, DateTime now) {
