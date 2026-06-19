@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:study_assistant_mobile/src/local/shuni_zuiling_local_client.dart';
 
 void main() {
-  test('fetches Shuni Zuiling schools from smartestu schools envelope', () async {
+  test('fetches Shuni Zuiling schools from smartestu schools envelope',
+      () async {
     final dio = Dio(
       BaseOptions(
         validateStatus: (status) => status != null && status < 500,
@@ -49,8 +50,7 @@ void main() {
               Response(
                 requestOptions: options,
                 statusCode: 200,
-                data:
-                    '{"schools":[{"name":"郑州轻工业大学","code":"zzuli"}]}',
+                data: '{"schools":[{"name":"郑州轻工业大学","code":"zzuli"}]}',
               ),
             );
           },

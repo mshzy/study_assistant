@@ -27,8 +27,7 @@ class AssignmentStore extends ChangeNotifier {
     ReminderRuleStore? reminderRuleStore,
   })  : repository = repository ?? LocalAssignmentRepository(),
         chaoxingClient = chaoxingClient ?? ChaoxingLocalClient(),
-        shuniZuilingClient =
-            shuniZuilingClient ?? ShuniZuilingLocalClient(),
+        shuniZuilingClient = shuniZuilingClient ?? ShuniZuilingLocalClient(),
         reminderRuleStore = reminderRuleStore ?? ReminderRuleStore();
 
   final SecureSessionStore sessionStore;
@@ -102,8 +101,7 @@ class AssignmentStore extends ChangeNotifier {
   Future<void> restoreSession() async {
     _account = await sessionStore.readChaoxingAccount();
     _shuniZuilingAccount = await sessionStore.readShuniZuilingAccount();
-    _shuniZuilingSchoolCode =
-        await sessionStore.readShuniZuilingSchoolCode();
+    _shuniZuilingSchoolCode = await sessionStore.readShuniZuilingSchoolCode();
     _authenticated = _account != null || _shuniZuilingAccount != null;
     _reminderOffsetsMinutes = await reminderRuleStore.loadOffsetsMinutes();
     _autoSyncIntervalMinutes = await _loadAutoSyncIntervalMinutes();
@@ -143,7 +141,7 @@ class AssignmentStore extends ChangeNotifier {
       _authenticated = true;
       _restartAutoSyncTimer();
       try {
-        await _syncAssignmentsBody(refreshSession: false);
+        await _syncAssignmentsBody();
       } catch (error) {
         _error = _friendlyError(error);
       }
@@ -183,7 +181,7 @@ class AssignmentStore extends ChangeNotifier {
       _authenticated = true;
       _restartAutoSyncTimer();
       try {
-        await _syncAssignmentsBody(refreshSession: false);
+        await _syncAssignmentsBody();
       } catch (error) {
         _error = _friendlyError(error);
       }
@@ -303,6 +301,7 @@ class AssignmentStore extends ChangeNotifier {
     _account = null;
     _shuniZuilingAccount = null;
     _shuniZuilingSchoolCode = null;
+    _error = null;
     _assignments.clear();
     _lastSyncAt = null;
     _restartAutoSyncTimer();
@@ -326,41 +325,64 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   Future<void> _syncAssignmentsBody({bool refreshSession = true}) async {
-    if (refreshSession) {
-      await _refreshChaoxingSession();
-      await _refreshShuniZuilingSession();
-    }
     final incoming = <Assignment>[];
-    Object? firstError;
-    final sources = <Future<List<Assignment>> Function()>[];
+    final failedPrefixes = <String>{};
+    final errors = <Object>[];
+    final sources = <_AssignmentSyncSource>[];
     if (_account != null) {
-      sources.add(chaoxingClient.fetchAssignments);
+      sources.add(
+        _AssignmentSyncSource(
+          prefix: 'cx:',
+          refresh: _refreshChaoxingSession,
+          fetch: chaoxingClient.fetchAssignments,
+        ),
+      );
     }
     final shuniStudentId = _shuniZuilingStudentId;
     if (shuniStudentId != null) {
       sources.add(
-        () => shuniZuilingClient.fetchAssignments(studentId: shuniStudentId),
+        _AssignmentSyncSource(
+          prefix: 'snzl:',
+          refresh: _refreshShuniZuilingSession,
+          fetch: () => shuniZuilingClient.fetchAssignments(
+            studentId: shuniStudentId,
+          ),
+        ),
       );
     }
     for (final source in sources) {
       try {
-        incoming.addAll(await source());
+        if (refreshSession) {
+          await source.refresh();
+        }
+        incoming.addAll(await source.fetch());
       } catch (error) {
-        firstError ??= error;
+        failedPrefixes.add(source.prefix);
+        errors.add(error);
       }
     }
-    if (incoming.isEmpty && firstError != null) {
-      throw firstError;
+    if (incoming.isEmpty && errors.isNotEmpty) {
+      throw errors.first;
     }
     if (incoming.isEmpty) {
       throw StateError('没有获取到作业。学习通或数你最灵当前可能没有未完成作业，或学校接口暂时不可用。');
     }
-    final merged = await repository.mergeAndSave(incoming);
+    final mergeInput = <Assignment>[
+      ...incoming,
+      if (failedPrefixes.isNotEmpty)
+        ..._assignments.where(
+          (assignment) => failedPrefixes.any(assignment.id.startsWith),
+        ),
+    ];
+    final merged = await repository.mergeAndSave(mergeInput);
     _assignments
       ..clear()
       ..addAll(merged);
     _lastSyncAt = await repository.lastSyncAt();
     await _afterAssignmentsChanged();
+    if (errors.isNotEmpty) {
+      _error = '部分平台同步失败，已保留未同步平台的旧作业。';
+    }
   }
 
   Future<void> _refreshChaoxingSession() async {
@@ -385,8 +407,8 @@ class AssignmentStore extends ChangeNotifier {
     final account =
         _shuniZuilingAccount ?? await sessionStore.readShuniZuilingAccount();
     final password = await sessionStore.readShuniZuilingPassword();
-    final schoolCode =
-        _shuniZuilingSchoolCode ?? await sessionStore.readShuniZuilingSchoolCode();
+    final schoolCode = _shuniZuilingSchoolCode ??
+        await sessionStore.readShuniZuilingSchoolCode();
     if (account == null ||
         account.trim().isEmpty ||
         password == null ||
@@ -488,4 +510,16 @@ class AssignmentStore extends ChangeNotifier {
     _autoSyncTimer?.cancel();
     super.dispose();
   }
+}
+
+class _AssignmentSyncSource {
+  const _AssignmentSyncSource({
+    required this.prefix,
+    required this.refresh,
+    required this.fetch,
+  });
+
+  final String prefix;
+  final Future<void> Function() refresh;
+  final Future<List<Assignment>> Function() fetch;
 }

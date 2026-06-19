@@ -239,8 +239,9 @@ class ShuniZuilingAssignmentParser {
     required Uri? baseUri,
     required DateTime now,
   }) {
-    final cleanText =
-        _decodeEntities(_stripTags(block)).replaceAll(RegExp(r'\s+'), ' ').trim();
+    final cleanText = _decodeEntities(_stripTags(block))
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
     final deadline = _deadlineFromText(cleanText);
     if (deadline == null) {
       return null;
@@ -408,7 +409,13 @@ class ShuniZuilingAssignmentParser {
   }
 
   static String _inferStatusFromText(String text) {
-    if (RegExp(r'(待批阅|待批改|已提交|已完成|已批阅|已批改|已评价|通过|submitted|graded|reviewed|done|complete)',
+    if (RegExp(r'(未提交|未完成|待完成|未开始|not[_\s-]?submitted|incomplete|pending)',
+            caseSensitive: false)
+        .hasMatch(text)) {
+      return 'pending';
+    }
+    if (RegExp(
+            r'(待批阅|待批改|已提交|已完成|已批阅|已批改|已评价|通过|submitted|graded|reviewed|done|complete)',
             caseSensitive: false)
         .hasMatch(text)) {
       return 'submitted';
@@ -502,7 +509,8 @@ class ShuniZuilingAssignmentParser {
     return null;
   }
 
-  static List<dynamic>? _firstList(Map<String, dynamic> map, List<String> keys) {
+  static List<dynamic>? _firstList(
+      Map<String, dynamic> map, List<String> keys) {
     for (final key in keys) {
       for (final entry in map.entries) {
         if (entry.key.toLowerCase() != key.toLowerCase()) {

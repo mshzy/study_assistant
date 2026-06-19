@@ -151,4 +151,114 @@ void main() {
       expect(assignments.first.id, 'cx:activity:556');
     },
   );
+
+  test('marks numeric completed homework status as submitted', () {
+    final assignments = ChaoxingApiParser.parseActivityAssignments(
+      {
+        'data': {
+          'activeList': [
+            {
+              'id': 888,
+              'nameOne': '章节作业',
+              'activeType': 47,
+              'status': 2,
+              'endTime': '2026-05-07 08:00:00',
+            },
+          ],
+        },
+      },
+      const ChaoxingCourseRef(
+        courseId: '111',
+        clazzId: '222',
+        courseName: '大学英语',
+      ),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.status, 'submitted');
+    expect(assignments.single.isCompleted, isTrue);
+  });
+
+  test('keeps peer review homework when description asks to complete review',
+      () {
+    final assignments = ChaoxingApiParser.parseActivityAssignments(
+      {
+        'data': {
+          'activeList': [
+            {
+              'id': 889,
+              'nameOne': '互评作业',
+              'activeType': 47,
+              'status': 1,
+              'description': '请在截止前完成互评',
+              'endTime': '2026-05-07 08:00:00',
+            },
+          ],
+        },
+      },
+      const ChaoxingCourseRef(
+        courseId: '111',
+        clazzId: '222',
+        courseName: '大学英语',
+      ),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.id, 'cx:activity:889');
+    expect(assignments.single.status, 'pending');
+  });
+
+  test('parses ISO UTC homework deadline as local time', () {
+    final assignments = ChaoxingApiParser.parseActivityAssignments(
+      {
+        'data': {
+          'activeList': [
+            {
+              'id': 890,
+              'nameOne': '章节作业',
+              'activeType': 47,
+              'status': 1,
+              'endTime': '2026-06-01T15:59:10.900Z',
+            },
+          ],
+        },
+      },
+      const ChaoxingCourseRef(
+        courseId: '111',
+        clazzId: '222',
+        courseName: '大学英语',
+      ),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(
+        assignments.single.deadlineAt, DateTime(2026, 6, 1, 23, 59, 10, 900));
+  });
+
+  test('parses exams that only provide start time', () {
+    final assignments = ChaoxingApiParser.parseActivityExamAssignments(
+      {
+        'data': {
+          'activeList': [
+            {
+              'id': 891,
+              'nameOne': '期末考试',
+              'activeType': 49,
+              'startTime': '2026-06-20 09:30:00',
+              'examDuration': '120',
+            },
+          ],
+        },
+      },
+      const ChaoxingCourseRef(
+        courseId: '111',
+        clazzId: '222',
+        courseName: '大学英语',
+      ),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.id, 'cx:exam:891');
+    expect(assignments.single.deadlineAt, DateTime(2026, 6, 20, 9, 30));
+  });
 }

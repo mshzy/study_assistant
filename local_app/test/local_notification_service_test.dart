@@ -37,4 +37,22 @@ void main() {
     expect(service, contains('presentList: true'));
     expect(service, contains('InterruptionLevel.active'));
   });
+
+  test('scheduled assignment notifications use cancellable payload prefix', () {
+    final service = File(
+      'lib/src/services/local_notification_service.dart',
+    ).readAsStringSync();
+
+    expect(service, contains("'a:studyassistant:///assignments/"));
+    expect(service, contains("request.payload?.startsWith('a:')"));
+  });
+
+  test('notification taps are wired to route payloads', () {
+    final service = File(
+      'lib/src/services/local_notification_service.dart',
+    ).readAsStringSync();
+
+    expect(service, contains('onDidReceiveNotificationResponse'));
+    expect(service, contains('getNotificationAppLaunchDetails'));
+  });
 }

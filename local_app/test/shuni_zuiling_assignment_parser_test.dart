@@ -61,7 +61,8 @@ void main() {
     expect(assignments.first.requirementsText, contains('矩阵分解'));
   });
 
-  test('marks submitted Shuni Zuiling homework as completed assignment state', () {
+  test('marks submitted Shuni Zuiling homework as completed assignment state',
+      () {
     final assignments = ShuniZuilingAssignmentParser.parseJson(
       {
         'list': [
@@ -180,5 +181,31 @@ void main() {
 
     expect(assignments.single.status, 'submitted');
     expect(assignments.single.isCompleted, isTrue);
+  });
+
+  test('keeps english negative homework status as pending', () {
+    final assignments = ShuniZuilingAssignmentParser.parseJson(
+      {
+        'list': [
+          {
+            'id': 'todo-1',
+            'title': '未交作业',
+            'courseName': '数学分析',
+            'endTime': '2026-05-27 10:00:00',
+            'status': 'not_submitted',
+          },
+          {
+            'id': 'todo-2',
+            'title': '未完成作业',
+            'courseName': '数学分析',
+            'endTime': '2026-05-28 10:00:00',
+            'state': 'incomplete',
+          },
+        ],
+      },
+      now: DateTime(2026, 5, 25, 12),
+    );
+
+    expect(assignments.map((item) => item.status), ['pending', 'pending']);
   });
 }

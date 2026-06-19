@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -37,6 +37,7 @@ Future<void> main() async {
 
   runApp(StudyAssistantApp(
     assignmentStore: assignmentStore,
+    notificationService: notificationService,
   ));
 }
 
@@ -44,9 +45,11 @@ class StudyAssistantApp extends StatefulWidget {
   const StudyAssistantApp({
     super.key,
     required this.assignmentStore,
+    required this.notificationService,
   });
 
   final AssignmentStore assignmentStore;
+  final LocalNotificationService notificationService;
 
   @override
   State<StudyAssistantApp> createState() => _StudyAssistantAppState();
@@ -55,16 +58,20 @@ class StudyAssistantApp extends StatefulWidget {
 class _StudyAssistantAppState extends State<StudyAssistantApp>
     with WidgetsBindingObserver {
   AssignmentStore get assignmentStore => widget.assignmentStore;
+  late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _router = _buildRouter();
+    widget.notificationService.setPayloadHandler(_handleNotificationPayload);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.notificationService.setPayloadHandler(null);
     super.dispose();
   }
 
@@ -77,7 +84,16 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
 
   @override
   Widget build(BuildContext context) {
-    final router = GoRouter(
+    return MaterialApp.router(
+      title: '学习通作业提醒',
+      debugShowCheckedModeBanner: false,
+      theme: StudyAssistantTheme.light,
+      routerConfig: _router,
+    );
+  }
+
+  GoRouter _buildRouter() {
+    return GoRouter(
       refreshListenable: assignmentStore,
       initialLocation:
           assignmentStore.isAuthenticated ? '/assignments' : '/login',
@@ -97,8 +113,7 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
           routes: [
             GoRoute(
               path: '/assignments',
-              builder: (_, __) =>
-                  AssignmentListScreen(store: assignmentStore),
+              builder: (_, __) => AssignmentListScreen(store: assignmentStore),
             ),
             GoRoute(
               path: '/assignments/:id',
@@ -144,12 +159,14 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
         return null;
       },
     );
+  }
 
-    return MaterialApp.router(
-      title: '学习通作业提醒',
-      debugShowCheckedModeBanner: false,
-      theme: StudyAssistantTheme.light,
-      routerConfig: router,
+  void _handleNotificationPayload(String payload) {
+    final location = AppDeepLinks.normalizeIncomingLocation(
+      Uri.parse(payload),
     );
+    if (location != null) {
+      _router.go(location);
+    }
   }
 }

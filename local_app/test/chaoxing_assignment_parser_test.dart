@@ -94,4 +94,27 @@ void main() {
       expect(assignments.first.id, 'cx:stu-work:334');
     },
   );
+
+  test('keeps peer review work when description asks to complete review', () {
+    const html = '''
+      <ul class="nav">
+        <li data="https://mooc1-api.chaoxing.com/work/doHomeWorkNew?courseId=111&clazzId=222&taskrefId=335">
+          <p>互评作业</p>
+          <span>大学英语</span>
+          <span>请在截止前完成互评</span>
+          <span>截止时间：2026-05-09 18:00</span>
+        </li>
+      </ul>
+    ''';
+
+    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+      html,
+      fallbackCourseName: '默认课程',
+      sourcePrefix: 'stu-work',
+      baseUri: Uri.parse('https://mooc1-api.chaoxing.com/work/stu-work'),
+    );
+
+    expect(assignments.single.id, 'cx:stu-work:335');
+    expect(assignments.single.status, 'pending');
+  });
 }

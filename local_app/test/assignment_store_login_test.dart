@@ -78,7 +78,8 @@ void main() {
     ]);
   });
 
-  test('restoreSession authenticates when only Shuni Zuiling is saved', () async {
+  test('restoreSession authenticates when only Shuni Zuiling is saved',
+      () async {
     final store = AssignmentStore(
       sessionStore: _MemorySessionStore(
         shuniAccount: '20260001',

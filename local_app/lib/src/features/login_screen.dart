@@ -277,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted || !_loginRequested) {
       return;
     }
-    if (widget.store.isAuthenticated && widget.store.error == null) {
+    if (widget.store.isAuthenticated) {
       context.go('/assignments');
     }
   }
@@ -385,6 +385,7 @@ class _ShuniZuilingForm extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<ShuniZuilingSchool>(
+          key: ValueKey(selectedSchool?.code ?? 'no-school'),
           initialValue: selectedSchool,
           items: schools
               .map(

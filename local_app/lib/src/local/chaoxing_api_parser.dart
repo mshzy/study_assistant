@@ -1,4 +1,4 @@
-﻿import '../models/assignment.dart';
+import '../models/assignment.dart';
 
 class ChaoxingCourseRef {
   const ChaoxingCourseRef({
@@ -126,9 +126,9 @@ class ChaoxingApiParser {
               ) ??
               title,
           status: Assignment.statusFromChaoxing(
-                _stringValue(activity['statusName'] ?? activity['stateName']),
-                _stringValue(activity['status'] ?? activity['state']),
-              ),
+            _stringValue(activity['statusName'] ?? activity['stateName']),
+            _stringValue(activity['status'] ?? activity['state']),
+          ),
           submitUrl: _activityUrl(course, id),
           lastSyncedAt: parsedAt,
         ),
@@ -170,7 +170,7 @@ class ChaoxingApiParser {
             activity['title'] ??
             activity['activeName'],
       );
-      final examDate = _deadlineFrom(activity);
+      final examDate = _examTimeFrom(activity);
       if (id == null || title == null || title.isEmpty || examDate == null) {
         continue;
       }
@@ -191,7 +191,8 @@ class ChaoxingApiParser {
             activity['examDuration'] ??
             activity['timeLong'],
       );
-      final durationMinutes = durationStr != null ? int.tryParse(durationStr) : null;
+      final durationMinutes =
+          durationStr != null ? int.tryParse(durationStr) : null;
 
       final completed = examDate.isBefore(parsedAt);
 
@@ -284,7 +285,7 @@ class ChaoxingApiParser {
     if (RegExp(r'(未完成|未提交|待互评|待评价|进行中)').hasMatch(combined)) {
       return false;
     }
-    if (RegExp(r'(已互评|已完成|已提交|已评价|评价完成|互评完成|完成)').hasMatch(combined)) {
+    if (RegExp(r'(已互评|已完成|已提交|已评价|评价完成|互评完成)').hasMatch(combined)) {
       return true;
     }
     final status = _stringValue(
@@ -314,12 +315,65 @@ class ChaoxingApiParser {
       return null;
     }
 
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) {
+      return iso.toLocal();
+    }
+
     final millis = int.tryParse(raw);
     if (millis != null) {
       final value = millis > 100000000000 ? millis : millis * 1000;
       return DateTime.fromMillisecondsSinceEpoch(value);
     }
 
+    final normalized = raw
+        .replaceAll('年', '-')
+        .replaceAll('月', '-')
+        .replaceAll('日', '')
+        .replaceAll('/', '-')
+        .trim();
+    final match = RegExp(
+      r'(20\d{2})-(\d{1,2})-(\d{1,2})(?:\s+|T)(\d{1,2}):(\d{2})(?::(\d{2}))?',
+    ).firstMatch(normalized);
+    if (match == null) {
+      return null;
+    }
+    return DateTime(
+      int.parse(match.group(1)!),
+      int.parse(match.group(2)!),
+      int.parse(match.group(3)!),
+      int.parse(match.group(4)!),
+      int.parse(match.group(5)!),
+      int.parse(match.group(6) ?? '0'),
+    );
+  }
+
+  static DateTime? _examTimeFrom(Map<String, dynamic> activity) {
+    final examSpecific = _stringValue(
+      activity['examTime'] ??
+          activity['examStartTime'] ??
+          activity['startTime'] ??
+          activity['beginTime'] ??
+          activity['startDate'],
+    );
+    if (examSpecific != null &&
+        examSpecific.isNotEmpty &&
+        examSpecific != '0') {
+      return _parseDateTime(examSpecific);
+    }
+    return _deadlineFrom(activity);
+  }
+
+  static DateTime? _parseDateTime(String raw) {
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) {
+      return iso.toLocal();
+    }
+    final millis = int.tryParse(raw);
+    if (millis != null) {
+      final value = millis > 100000000000 ? millis : millis * 1000;
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
     final normalized = raw
         .replaceAll('年', '-')
         .replaceAll('月', '-')

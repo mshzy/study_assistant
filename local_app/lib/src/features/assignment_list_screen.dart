@@ -102,7 +102,8 @@ class _AssignmentCard extends StatelessWidget {
     final deadline = DateFormat('M月d日 HH:mm', 'zh_CN').format(
       assignment.deadlineAt,
     );
-    final urgent = assignment.deadlineAt.difference(DateTime.now()).inHours <= 24;
+    final urgent =
+        assignment.deadlineAt.difference(DateTime.now()).inHours <= 24;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -192,9 +193,7 @@ class _EmptyAssignments extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isAuthenticated
-                ? '同步后，学习通和数你最灵的待完成作业都会显示在这里。'
-                : '登录后，作业会出现在这里。',
+            isAuthenticated ? '同步后，学习通和数你最灵的待完成作业都会显示在这里。' : '登录后，作业会出现在这里。',
           ),
         ],
       ),

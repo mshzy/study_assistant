@@ -95,6 +95,30 @@ void main() {
     expect(find.text('郑州轻工业大学'), findsNothing);
   });
 
+  testWidgets('school dropdown value follows keyword filtered result',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      shuniZuilingClient: _SchoolListShuniZuilingClient(),
+    );
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(MaterialApp(home: LoginScreen(store: store)));
+    await tester.tap(find.text('数你最灵'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('school-keyword')), '测试');
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<DropdownButtonFormField<ShuniZuilingSchool>>(
+      find.byType(DropdownButtonFormField<ShuniZuilingSchool>),
+    );
+    expect(field.initialValue?.code, 'test');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('school dropdown updates when async school loading completes',
       (tester) async {
     SharedPreferences.setMockInitialValues({});

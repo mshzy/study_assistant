@@ -5,9 +5,16 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/assignment.dart';
 import 'reminder_rule_store.dart';
 
+typedef NotificationPayloadHandler = void Function(String payload);
+
 class LocalNotificationService {
+  LocalNotificationService({NotificationPayloadHandler? onPayload})
+      : _onPayload = onPayload;
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  NotificationPayloadHandler? _onPayload;
+  String? _pendingPayload;
 
   static String formatDeadlineRemainingText(int offsetMinutes) {
     final safeMinutes = offsetMinutes < 0 ? 0 : offsetMinutes;
@@ -22,20 +29,39 @@ class LocalNotificationService {
     return '还剩 ${parts.join(' ')}截止';
   }
 
-  Future<void> initializeSafely() async {
+  void setPayloadHandler(NotificationPayloadHandler? onPayload) {
+    _onPayload = onPayload;
+    final pendingPayload = _pendingPayload;
+    if (onPayload != null && pendingPayload != null) {
+      _pendingPayload = null;
+      onPayload(pendingPayload);
+    }
+  }
+
+  Future<void> initializeSafely({NotificationPayloadHandler? onPayload}) async {
     try {
-      await initialize();
+      await initialize(onPayload: onPayload);
     } catch (_) {}
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize({NotificationPayloadHandler? onPayload}) async {
+    if (onPayload != null) {
+      setPayloadHandler(onPayload);
+    }
     timezone_data.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Shanghai'));
     const android = AndroidInitializationSettings('@drawable/app_icon');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    final launchResponse = launchDetails?.notificationResponse;
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchResponse != null) {
+      _handleNotificationResponse(launchResponse);
+    }
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
@@ -89,8 +115,24 @@ class LocalNotificationService {
       body:
           '${assignment.courseName} · ${assignment.title}，${formatDeadlineRemainingText(offset)}',
       notifyAt: notifyAt,
-      payload: 'studyassistant://assignments/${assignment.id}',
+      payload:
+          'a:studyassistant:///assignments/${Uri.encodeComponent(assignment.id)}',
     );
+  }
+
+  void _handleNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) {
+      return;
+    }
+    final routePayload =
+        payload.startsWith('a:') ? payload.substring(2) : payload;
+    final handler = _onPayload;
+    if (handler == null) {
+      _pendingPayload = routePayload;
+      return;
+    }
+    handler(routePayload);
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -99,7 +141,8 @@ class LocalNotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
     await _plugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
