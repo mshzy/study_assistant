@@ -92,6 +92,7 @@ void main() {
   test('downloads GitHub apk asset to a local apk file', () async {
     final tempDir = await Directory.systemTemp.createTemp('study-update-test-');
     addTearDown(() => tempDir.delete(recursive: true));
+    final progressEvents = <List<int>>[];
     final dio = Dio(
       BaseOptions(validateStatus: (status) => status != null && status < 500),
     )..interceptors.add(
@@ -120,9 +121,13 @@ void main() {
         releaseNotes: '',
       ),
       targetDirectory: tempDir.path,
+      onProgress: (received, total) {
+        progressEvents.add([received, total]);
+      },
     );
 
     expect(downloaded.path, endsWith('study-assistant-v1.0.7.apk'));
     expect(await File(downloaded.path).readAsBytes(), [1, 2, 3, 4]);
+    expect(progressEvents.last, [4, 4]);
   });
 }

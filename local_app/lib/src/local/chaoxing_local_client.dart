@@ -70,8 +70,8 @@ class ChaoxingLocalClient {
         message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码',
       );
     }
-    await _completeLoginSession(response.data);
-    final profile = await _fetchProfile(response.data);
+    final sessionProfile = await _completeLoginSession(response.data);
+    final profile = await _fetchProfile(response.data, sessionProfile);
     return ChaoxingLoginResult(
       success: true,
       displayName: profile.displayName,
@@ -237,35 +237,45 @@ class ChaoxingLocalClient {
     return match?.group(1);
   }
 
-  Future<void> _completeLoginSession(dynamic payload) async {
+  Future<_ChaoxingProfile> _completeLoginSession(dynamic payload) async {
     final redirectUrl = _extractLoginRedirectUrl(payload);
     if (redirectUrl == null) {
-      return;
+      return const _ChaoxingProfile();
     }
-    await _safeGet<dynamic>(
+    final response = await _safeGet<dynamic>(
       redirectUrl,
       headers: {'Accept': 'text/html,application/xhtml+xml,*/*'},
     );
+    return _extractProfile(response?.data);
   }
 
-  Future<_ChaoxingProfile> _fetchProfile(dynamic loginPayload) async {
+  Future<_ChaoxingProfile> _fetchProfile(
+    dynamic loginPayload,
+    _ChaoxingProfile sessionProfile,
+  ) async {
     final fromLogin = _extractProfile(loginPayload);
+    final fallback = _ChaoxingProfile(
+      displayName: sessionProfile.displayName ?? fromLogin.displayName,
+      avatarUrl: sessionProfile.avatarUrl ?? fromLogin.avatarUrl,
+    );
     final candidates = ['https://i.chaoxing.com/base'];
     for (final uri in candidates) {
       final response = await _safeGet<dynamic>(
         uri,
         headers: {'Accept': 'application/json,text/html,*/*'},
       );
-      final fromResponse = _extractProfile(response?.data);
+      final fromResponse = response == null
+          ? const _ChaoxingProfile()
+          : _extractProfile(response.data);
       final merged = _ChaoxingProfile(
-        displayName: fromResponse.displayName ?? fromLogin.displayName,
-        avatarUrl: fromResponse.avatarUrl ?? fromLogin.avatarUrl,
+        displayName: fromResponse.displayName ?? fallback.displayName,
+        avatarUrl: fromResponse.avatarUrl ?? fallback.avatarUrl,
       );
       if (merged.displayName != null || merged.avatarUrl != null) {
         return merged;
       }
     }
-    return fromLogin;
+    return fallback;
   }
 
   _ChaoxingProfile _extractProfile(dynamic payload) {
@@ -360,7 +370,7 @@ class ChaoxingLocalClient {
           return normalized;
         }
       }
-      for (final key in ['data', 'user', 'userInfo', 'accountInfo']) {
+      for (final key in ['msg', 'data', 'user', 'userInfo', 'accountInfo']) {
         final nested = _extractDisplayNameFromJson(payload[key]);
         if (nested != null) {
           return nested;
@@ -388,7 +398,7 @@ class ChaoxingLocalClient {
       return null;
     }
     final imageLike = RegExp(
-      r'''(?:avatar|avatarUrl|photo|photoUrl|pic|picUrl|headPic|headimgurl)["']?\s*[:=]\s*["']([^"']+)["']''',
+      r'''(?:avatar|avatarUrl|avatarurl|photo|photoUrl|pic|picUrl|headPic|headimgurl)["']?\s*[:=]\s*["']?([^"',}\s]+)''',
       caseSensitive: false,
     ).firstMatch(body);
     return _normalizeUrl(imageLike?.group(1));
@@ -413,7 +423,7 @@ class ChaoxingLocalClient {
           return normalized;
         }
       }
-      for (final key in ['data', 'user', 'userInfo', 'accountInfo']) {
+      for (final key in ['msg', 'data', 'user', 'userInfo', 'accountInfo']) {
         final nested = _extractAvatarUrlFromJson(payload[key]);
         if (nested != null) {
           return nested;

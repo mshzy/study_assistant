@@ -103,6 +103,29 @@ void main() {
     expect(store.shuniZuilingAccount, '20260001');
     expect(store.account, contains('数你最灵'));
   });
+
+  test('refreshing Chaoxing session saves recovered profile data', () async {
+    final sessionStore = _MemorySessionStore()
+      ..account = 'student'
+      ..password = 'password';
+    final store = AssignmentStore(
+      sessionStore: sessionStore,
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      chaoxingClient: _RefreshingChaoxingClient(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+
+    await store.syncAssignments();
+
+    expect(store.profileDisplayName, '郜小展');
+    expect(await sessionStore.readChaoxingDisplayName(), '郜小展');
+    expect(
+      await sessionStore.readChaoxingAvatarUrl(),
+      'https://photo.chaoxing.com/p/402733611_160',
+    );
+  });
 }
 
 class _LoginOnlyChaoxingClient extends ChaoxingLocalClient {
@@ -140,6 +163,35 @@ class _LoginOnlyShuniZuilingClient extends ShuniZuilingLocalClient {
     List<int> courseIds = const [],
   }) async {
     throw StateError('同步失败');
+  }
+}
+
+class _RefreshingChaoxingClient extends ChaoxingLocalClient {
+  @override
+  Future<ChaoxingLoginResult> login({
+    required String account,
+    required String password,
+  }) async {
+    return const ChaoxingLoginResult(
+      success: true,
+      displayName: '郜小展',
+      avatarUrl: 'https://photo.chaoxing.com/p/402733611_160',
+    );
+  }
+
+  @override
+  Future<List<Assignment>> fetchAssignments() async {
+    return [
+      Assignment(
+        id: 'cx:1',
+        courseName: '高等数学',
+        title: '习题作业',
+        deadlineAt: DateTime.now().add(const Duration(days: 1)),
+        requirementsText: '完成后提交',
+        status: 'pending',
+        lastSyncedAt: DateTime.now(),
+      ),
+    ];
   }
 }
 

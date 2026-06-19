@@ -91,6 +91,7 @@ class AppUpdateService {
   Future<File> downloadApk(
     AppUpdateInfo update, {
     String? targetDirectory,
+    void Function(int receivedBytes, int totalBytes)? onProgress,
   }) async {
     final baseDirectory = targetDirectory == null
         ? Directory(
@@ -103,13 +104,19 @@ class AppUpdateService {
     );
     final response = await _dio.get<List<int>>(
       update.apkDownloadUrl,
+      onReceiveProgress: onProgress,
       options: Options(responseType: ResponseType.bytes),
     );
     final status = response.statusCode ?? 0;
     if (status < 200 || status >= 300 || response.data == null) {
       throw StateError('下载 APK 失败');
     }
-    await file.writeAsBytes(response.data!, flush: true);
+    final bytes = response.data!;
+    final totalBytes = _asInt(response.headers.value('content-length')) ??
+        update.apkSize ??
+        bytes.length;
+    onProgress?.call(bytes.length, totalBytes);
+    await file.writeAsBytes(bytes, flush: true);
     return file;
   }
 

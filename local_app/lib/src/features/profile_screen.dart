@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -213,13 +215,13 @@ class ProfileScreen extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('正在从 GitHub 下载更新包...')),
-                  );
-                  final apkFile =
-                      await (updateService ?? AppUpdateService()).downloadApk(
+                  final apkFile = await _downloadUpdateWithProgress(
+                    context,
                     update,
                   );
+                  if (apkFile == null) {
+                    return;
+                  }
                   if (context.mounted) {
                     messenger.showSnackBar(
                       const SnackBar(content: Text('安装包已下载，正在打开系统安装器')),
@@ -250,6 +252,118 @@ class ProfileScreen extends StatelessWidget {
         const SnackBar(content: Text('检查更新失败，请稍后再试')),
       );
     }
+  }
+
+  Future<File?> _downloadUpdateWithProgress(
+    BuildContext context,
+    AppUpdateInfo update,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final notifier = ValueNotifier<_DownloadProgress>(
+      const _DownloadProgress(receivedBytes: 0, totalBytes: 0),
+    );
+    File? apkFile;
+    Object? downloadError;
+    Future<void>? downloadFuture;
+    var started = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (progressContext) {
+        if (!started) {
+          started = true;
+          downloadFuture = (updateService ?? AppUpdateService()).downloadApk(
+            update,
+            onProgress: (received, total) {
+              notifier.value = _DownloadProgress(
+                receivedBytes: received,
+                totalBytes: total,
+              );
+            },
+          ).then((file) {
+            apkFile = file;
+          }).catchError((error) {
+            downloadError = error;
+          }).whenComplete(() {
+            if (progressContext.mounted) {
+              Navigator.of(progressContext).pop();
+            }
+          });
+        }
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('正在下载更新包'),
+            content: ValueListenableBuilder<_DownloadProgress>(
+              valueListenable: notifier,
+              builder: (context, progress, _) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: progress.hasTotal ? progress.ratio : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(progress.label),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+    await downloadFuture;
+    notifier.dispose();
+
+    if (downloadError != null) {
+      if (context.mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('下载更新包失败，请稍后再试')),
+        );
+      }
+      return null;
+    }
+    return apkFile;
+  }
+}
+
+class _DownloadProgress {
+  const _DownloadProgress({
+    required this.receivedBytes,
+    required this.totalBytes,
+  });
+
+  final int receivedBytes;
+  final int totalBytes;
+
+  bool get hasTotal => totalBytes > 0;
+
+  double? get ratio {
+    if (!hasTotal) {
+      return null;
+    }
+    return (receivedBytes / totalBytes).clamp(0, 1).toDouble();
+  }
+
+  String get label {
+    if (!hasTotal) {
+      return '已下载 ${_formatBytes(receivedBytes)}';
+    }
+    final percent = ((ratio ?? 0) * 100).clamp(0, 100).round();
+    return '$percent% · ${_formatBytes(receivedBytes)} / ${_formatBytes(totalBytes)}';
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    }
+    if (bytes >= 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '$bytes B';
   }
 }
 

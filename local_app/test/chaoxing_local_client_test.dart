@@ -91,6 +91,70 @@ void main() {
     ]);
     expect(requests.last.headers['Cookie'], contains('UID=998877'));
   });
+
+  test('extracts Chaoxing profile from nested SSO msg payload', () async {
+    final dio = Dio(
+      BaseOptions(
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.uri.host == 'passport2-api.chaoxing.com') {
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: {
+                    'status': true,
+                    'url':
+                        'https://sso.chaoxing.com/apis/login/userLogin4Uname.do',
+                  },
+                ),
+              );
+              return;
+            }
+            if (options.uri.host == 'sso.chaoxing.com') {
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: {
+                    'msg': {
+                      'name': '郜小展',
+                      'nick': '郜小展',
+                      'pic': 'http://photo.chaoxing.com/p/402733611_120?flag=1',
+                    },
+                    'status': true,
+                  },
+                  headers: Headers.fromMap({
+                    'set-cookie': ['UID=354629555; Path=/; HttpOnly'],
+                  }),
+                ),
+              );
+              return;
+            }
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 404,
+                data: 'not found',
+              ),
+            );
+          },
+        ),
+      );
+    final client = ChaoxingLocalClient(dio: dio);
+
+    final result = await client.login(account: 'student', password: 'password');
+
+    expect(result.success, isTrue);
+    expect(result.displayName, '郜小展');
+    expect(
+      result.avatarUrl,
+      'https://photo.chaoxing.com/p/402733611_120?flag=1',
+    );
+  });
 }
 
 class _RecordedRequest {

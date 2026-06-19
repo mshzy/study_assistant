@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -103,6 +104,52 @@ void main() {
     expect(externalLinkService.openedUrls, isEmpty);
     expect(externalLinkService.installedApkPaths, [downloadedApk.path]);
   });
+
+  testWidgets('profile shows download progress while updating', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final downloadedApk = File(
+      '${Directory.systemTemp.path}/study-assistant-v1.0.11.apk',
+    );
+    final updateService = _SlowUpdateService(downloadedApk: downloadedApk);
+    final externalLinkService = _FakeExternalLinkService();
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfileScreen(
+            store: store,
+            updateService: updateService,
+            externalLinkService: externalLinkService,
+          ),
+        ),
+      ),
+    );
+
+    await tester.ensureVisible(find.text('检查更新'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('检查更新'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('下载并安装'));
+    await tester.pump();
+    updateService.emitProgress(5, 10);
+    await tester.pump();
+
+    expect(find.text('正在下载更新包'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.textContaining('50%'), findsOneWidget);
+
+    updateService.completeDownload();
+    await tester.pumpAndSettle();
+
+    expect(externalLinkService.installedApkPaths, [downloadedApk.path]);
+  });
+
   testWidgets('profile settings contain reminder and sync entries',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -147,10 +194,57 @@ class _FakeUpdateService extends AppUpdateService {
   Future<File> downloadApk(
     AppUpdateInfo update, {
     String? targetDirectory,
+    void Function(int receivedBytes, int totalBytes)? onProgress,
   }) async {
     downloadedUpdate = update;
-    return downloadedApk ??
-        File('${Directory.systemTemp.path}/${update.apkName}');
+    final file =
+        downloadedApk ?? File('${Directory.systemTemp.path}/${update.apkName}');
+    onProgress?.call(4, 10);
+    onProgress?.call(10, 10);
+    return file;
+  }
+}
+
+class _SlowUpdateService extends AppUpdateService {
+  _SlowUpdateService({required this.downloadedApk});
+
+  final File downloadedApk;
+  void Function(int receivedBytes, int totalBytes)? progressCallback;
+  Completer<File>? downloadCompleter;
+
+  @override
+  Future<AppUpdateInfo?> checkForUpdate({
+    required String currentVersionName,
+    required int currentVersionCode,
+  }) async {
+    return const AppUpdateInfo(
+      versionName: '1.0.11',
+      releaseUrl:
+          'https://github.com/mshzy/study_assistant/releases/tag/v1.0.11',
+      apkName: 'study-assistant-v1.0.11.apk',
+      apkDownloadUrl:
+          'https://github.com/mshzy/study_assistant/releases/download/v1.0.11/study-assistant-v1.0.11.apk',
+      releaseNotes: '',
+    );
+  }
+
+  @override
+  Future<File> downloadApk(
+    AppUpdateInfo update, {
+    String? targetDirectory,
+    void Function(int receivedBytes, int totalBytes)? onProgress,
+  }) {
+    progressCallback = onProgress;
+    downloadCompleter = Completer<File>();
+    return downloadCompleter!.future;
+  }
+
+  void emitProgress(int receivedBytes, int totalBytes) {
+    progressCallback?.call(receivedBytes, totalBytes);
+  }
+
+  void completeDownload() {
+    downloadCompleter?.complete(downloadedApk);
   }
 }
 

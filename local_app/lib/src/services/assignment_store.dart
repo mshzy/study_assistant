@@ -429,6 +429,23 @@ class AssignmentStore extends ChangeNotifier {
     if (!result.success) {
       throw StateError(result.message ?? '登录失败');
     }
+    _account = account;
+    if (result.displayName != null || result.avatarUrl != null) {
+      final displayName = result.displayName ??
+          _chaoxingDisplayName ??
+          await sessionStore.readChaoxingDisplayName();
+      final avatarUrl = result.avatarUrl ??
+          _chaoxingAvatarUrl ??
+          await sessionStore.readChaoxingAvatarUrl();
+      await sessionStore.saveChaoxingAccount(
+        account: account,
+        password: password,
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+      );
+      _chaoxingDisplayName = displayName;
+      _chaoxingAvatarUrl = avatarUrl;
+    }
   }
 
   Future<void> _refreshShuniZuilingSession() async {
