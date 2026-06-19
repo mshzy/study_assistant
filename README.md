@@ -6,7 +6,7 @@
 
 - 版权归 HY 所有
 - GitHub：https://github.com/mshzy/study_assistant
-- 当前版本：1.0.6
+- 当前版本：1.0.7
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
 
 ## 预览
@@ -49,7 +49,7 @@
 ### 1. 安装
 
 1. 打开 GitHub Release 页面：https://github.com/mshzy/study_assistant/releases
-2. 下载最新版本 APK，例如 `study-assistant-v1.0.6.apk`。
+2. 下载最新版本 APK，例如 `study-assistant-v1.0.7.apk`。
 3. 在 Android 手机上打开 APK，根据系统提示允许安装。
 4. 首次打开 App 后，按提示授予通知权限。为了准时提醒，建议在“提醒”页开启精确闹钟、锁屏提醒和后台/自启动相关权限。
 
@@ -81,6 +81,15 @@
 - 学习通、数你最灵账号密码和作业数据只保存在本机，不会上传到任何自建服务器。
 - 不绕过学习通验证码、风控或加密保护。
 - 小组件不直接访问学习通或后端，只显示 App 写入的本地共享快照。
+
+## v1.0.7 更新
+
+- 修复学习通姓名和头像获取逻辑：登录后先跟随学习通 SSO 地址完成 cookie 落地，再访问学习通个人首页解析用户信息。
+- “我的”页支持显示学习通头像，头像加载失败时会自动回退到默认头像。
+- 学习通头像地址改为根据登录态 UID 生成 `photo.chaoxing.com` 官方头像地址。
+- 学习通学生姓名和头像 URL 会保存到本地安全存储，重启后仍可显示。
+- Android 版本更新为 `versionName=1.0.7`、`versionCode=18`。
+- APK SHA256：`85F06FDD5ED342F74308B11A84D51932429F7D74246AEDE7558339DE1D213D49`。
 
 ## v1.0.6 更新
 

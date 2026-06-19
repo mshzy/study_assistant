@@ -31,6 +31,7 @@ class ProfileScreen extends StatelessWidget {
           children: [
             _ProfileHeader(
               displayName: store.profileDisplayName,
+              avatarUrl: store.profileAvatarUrl,
               accountLabel: store.account ?? '未绑定账号',
             ),
             Transform.translate(
@@ -243,10 +244,12 @@ class ProfileScreen extends StatelessWidget {
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.displayName,
+    required this.avatarUrl,
     required this.accountLabel,
   });
 
   final String displayName;
+  final String? avatarUrl;
   final String accountLabel;
 
   @override
@@ -303,10 +306,15 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Color(0xFF2E86FF),
-                    size: 38,
+                  child: ClipOval(
+                    child: avatarUrl == null
+                        ? const _DefaultAvatar()
+                        : Image.network(
+                            avatarUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const _DefaultAvatar(),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -340,6 +348,19 @@ class _ProfileHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DefaultAvatar extends StatelessWidget {
+  const _DefaultAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(
+      Icons.person,
+      color: Color(0xFF2E86FF),
+      size: 38,
     );
   }
 }

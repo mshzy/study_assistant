@@ -20,6 +20,7 @@ class SecureSessionStore {
     required String account,
     required String password,
     String? displayName,
+    String? avatarUrl,
   }) async {
     await _storage.write(key: 'chaoxingAccount', value: account);
     await _storage.write(key: 'chaoxingPassword', value: password);
@@ -29,6 +30,14 @@ class SecureSessionStore {
       await _storage.write(
         key: 'chaoxingDisplayName',
         value: displayName.trim(),
+      );
+    }
+    if (avatarUrl == null || avatarUrl.trim().isEmpty) {
+      await _storage.delete(key: 'chaoxingAvatarUrl');
+    } else {
+      await _storage.write(
+        key: 'chaoxingAvatarUrl',
+        value: avatarUrl.trim(),
       );
     }
   }
@@ -41,6 +50,9 @@ class SecureSessionStore {
 
   Future<String?> readChaoxingDisplayName() =>
       _storage.read(key: 'chaoxingDisplayName');
+
+  Future<String?> readChaoxingAvatarUrl() =>
+      _storage.read(key: 'chaoxingAvatarUrl');
 
   Future<void> saveShuniZuilingAccount({
     required String schoolUserLocalId,

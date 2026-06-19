@@ -27,7 +27,10 @@ void main() {
   testWidgets('profile uses Chaoxing student display name', (tester) async {
     SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
     final store = AssignmentStore(
-      sessionStore: _MemorySessionStore(displayName: '李雷'),
+      sessionStore: _MemorySessionStore(
+        displayName: '李雷',
+        avatarUrl: 'https://photo.chaoxing.com/p/998877_160',
+      ),
       notificationService: _NoopNotificationService(),
       widgetSnapshotService: _NoopWidgetSnapshotService(),
     );
@@ -38,6 +41,9 @@ void main() {
 
     expect(find.text('李雷'), findsOneWidget);
     expect(find.text('小明同学'), findsNothing);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect((image.image as NetworkImage).url,
+        'https://photo.chaoxing.com/p/998877_160');
   });
 
   testWidgets('profile checks app update and offers apk download',
@@ -120,15 +126,19 @@ class _FakeUpdateService extends AppUpdateService {
 }
 
 class _MemorySessionStore extends SecureSessionStore {
-  _MemorySessionStore({this.displayName});
+  _MemorySessionStore({this.displayName, this.avatarUrl});
 
   final String? displayName;
+  final String? avatarUrl;
 
   @override
   Future<String?> readChaoxingAccount() async => 'student';
 
   @override
   Future<String?> readChaoxingDisplayName() async => displayName;
+
+  @override
+  Future<String?> readChaoxingAvatarUrl() async => avatarUrl;
 
   @override
   Future<String?> readShuniZuilingAccount() async => null;

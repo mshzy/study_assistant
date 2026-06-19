@@ -44,6 +44,7 @@ class AssignmentStore extends ChangeNotifier {
   String? _error;
   String? _account;
   String? _chaoxingDisplayName;
+  String? _chaoxingAvatarUrl;
   String? _shuniZuilingAccount;
   String? _shuniZuilingSchoolCode;
   DateTime? _lastSyncAt;
@@ -73,6 +74,8 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   String? get chaoxingAccount => _account;
+  String? get profileAvatarUrl => _chaoxingAvatarUrl;
+
   String get profileDisplayName {
     final name = _chaoxingDisplayName?.trim();
     if (name != null && name.isNotEmpty) {
@@ -118,6 +121,7 @@ class AssignmentStore extends ChangeNotifier {
   Future<void> restoreSession() async {
     _account = await sessionStore.readChaoxingAccount();
     _chaoxingDisplayName = await sessionStore.readChaoxingDisplayName();
+    _chaoxingAvatarUrl = await sessionStore.readChaoxingAvatarUrl();
     _shuniZuilingAccount = await sessionStore.readShuniZuilingAccount();
     _shuniZuilingSchoolCode = await sessionStore.readShuniZuilingSchoolCode();
     _authenticated = _account != null || _shuniZuilingAccount != null;
@@ -154,9 +158,11 @@ class AssignmentStore extends ChangeNotifier {
         account: account,
         password: password,
         displayName: result.displayName,
+        avatarUrl: result.avatarUrl,
       );
       _account = account;
       _chaoxingDisplayName = result.displayName;
+      _chaoxingAvatarUrl = result.avatarUrl;
       _agreementAccepted = true;
       _authenticated = true;
       _restartAutoSyncTimer();
@@ -320,6 +326,7 @@ class AssignmentStore extends ChangeNotifier {
     _authenticated = false;
     _account = null;
     _chaoxingDisplayName = null;
+    _chaoxingAvatarUrl = null;
     _shuniZuilingAccount = null;
     _shuniZuilingSchoolCode = null;
     _error = null;

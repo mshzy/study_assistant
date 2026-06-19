@@ -154,6 +154,9 @@ class _MemorySessionStore extends SecureSessionStore {
   Future<String?> readChaoxingDisplayName() async => null;
 
   @override
+  Future<String?> readChaoxingAvatarUrl() async => null;
+
+  @override
   Future<String?> readChaoxingPassword() async => password;
 
   @override

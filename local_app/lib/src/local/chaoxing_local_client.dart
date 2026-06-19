@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../models/assignment.dart';
@@ -9,11 +11,13 @@ class ChaoxingLoginResult {
     required this.success,
     this.message,
     this.displayName,
+    this.avatarUrl,
   });
 
   final bool success;
   final String? message;
   final String? displayName;
+  final String? avatarUrl;
 }
 
 class ChaoxingLocalClient {
@@ -66,9 +70,13 @@ class ChaoxingLocalClient {
         message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码',
       );
     }
-    final displayName =
-        _extractDisplayName(response.data) ?? await _fetchDisplayName();
-    return ChaoxingLoginResult(success: true, displayName: displayName);
+    await _completeLoginSession(response.data);
+    final profile = await _fetchProfile(response.data);
+    return ChaoxingLoginResult(
+      success: true,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+    );
   }
 
   Future<List<Assignment>> fetchAssignments() async {
@@ -229,23 +237,78 @@ class ChaoxingLocalClient {
     return match?.group(1);
   }
 
-  Future<String?> _fetchDisplayName() async {
-    final candidates = [
-      'https://passport2-api.chaoxing.com/v11/getUserInfo',
-      'https://passport2.chaoxing.com/api/user/info',
-      'https://i.chaoxing.com/base',
-    ];
+  Future<void> _completeLoginSession(dynamic payload) async {
+    final redirectUrl = _extractLoginRedirectUrl(payload);
+    if (redirectUrl == null) {
+      return;
+    }
+    await _safeGet<dynamic>(
+      redirectUrl,
+      headers: {'Accept': 'text/html,application/xhtml+xml,*/*'},
+    );
+  }
+
+  Future<_ChaoxingProfile> _fetchProfile(dynamic loginPayload) async {
+    final fromLogin = _extractProfile(loginPayload);
+    final candidates = ['https://i.chaoxing.com/base'];
     for (final uri in candidates) {
       final response = await _safeGet<dynamic>(
         uri,
         headers: {'Accept': 'application/json,text/html,*/*'},
       );
-      final name = _extractDisplayName(response?.data);
-      if (name != null) {
-        return name;
+      final fromResponse = _extractProfile(response?.data);
+      final merged = _ChaoxingProfile(
+        displayName: fromResponse.displayName ?? fromLogin.displayName,
+        avatarUrl: fromResponse.avatarUrl ?? fromLogin.avatarUrl,
+      );
+      if (merged.displayName != null || merged.avatarUrl != null) {
+        return merged;
       }
     }
-    return null;
+    return fromLogin;
+  }
+
+  _ChaoxingProfile _extractProfile(dynamic payload) {
+    final decoded = _decodeJsonPayload(payload);
+    final displayName = _extractDisplayName(decoded);
+    final avatarFromPayload = _extractAvatarUrl(decoded);
+    return _ChaoxingProfile(
+      displayName: displayName,
+      avatarUrl: avatarFromPayload ?? _avatarUrlFromCookie(),
+    );
+  }
+
+  dynamic _decodeJsonPayload(dynamic payload) {
+    if (payload is! String) {
+      return payload;
+    }
+    final trimmed = payload.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return payload;
+    }
+    try {
+      return jsonDecode(trimmed);
+    } catch (_) {
+      return payload;
+    }
+  }
+
+  String? _extractLoginRedirectUrl(dynamic payload) {
+    final decoded = _decodeJsonPayload(payload);
+    if (decoded is Map) {
+      for (final key in ['url', 'loginUrl', 'redirectUrl', 'location']) {
+        final normalized = _normalizeUrl(decoded[key]?.toString());
+        if (normalized != null) {
+          return normalized;
+        }
+      }
+    }
+    final body = payload?.toString() ?? '';
+    final match = RegExp(
+      r'"(?:url|loginUrl|redirectUrl|location)"\s*:\s*"([^"]+)"',
+      caseSensitive: false,
+    ).firstMatch(body);
+    return _normalizeUrl(match?.group(1));
   }
 
   String? _extractDisplayName(dynamic payload) {
@@ -256,6 +319,16 @@ class ChaoxingLocalClient {
     final body = payload?.toString() ?? '';
     if (body.isEmpty) {
       return null;
+    }
+    final userNameElement = RegExp(
+      r'''class=["'][^"']*user-name[^"']*["'][^>]*>(.*?)</[^>]+>''',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(body);
+    final fromElement =
+        _normalizeDisplayName(_stripTags(userNameElement?.group(1)));
+    if (fromElement != null) {
+      return fromElement;
     }
     final jsonLike = RegExp(
       r'"(?:realName|realname|name|nickName|nickname|uname|userName|username)"\s*:\s*"([^"]+)"',
@@ -305,9 +378,62 @@ class ChaoxingLocalClient {
     return null;
   }
 
+  String? _extractAvatarUrl(dynamic payload) {
+    final direct = _extractAvatarUrlFromJson(payload);
+    if (direct != null) {
+      return direct;
+    }
+    final body = payload?.toString() ?? '';
+    if (body.isEmpty) {
+      return null;
+    }
+    final imageLike = RegExp(
+      r'''(?:avatar|avatarUrl|photo|photoUrl|pic|picUrl|headPic|headimgurl)["']?\s*[:=]\s*["']([^"']+)["']''',
+      caseSensitive: false,
+    ).firstMatch(body);
+    return _normalizeUrl(imageLike?.group(1));
+  }
+
+  String? _extractAvatarUrlFromJson(dynamic payload) {
+    if (payload is Map) {
+      final candidates = [
+        payload['avatar'],
+        payload['avatarUrl'],
+        payload['avatarurl'],
+        payload['photo'],
+        payload['photoUrl'],
+        payload['pic'],
+        payload['picUrl'],
+        payload['headPic'],
+        payload['headimgurl'],
+      ];
+      for (final candidate in candidates) {
+        final normalized = _normalizeUrl(candidate?.toString());
+        if (normalized != null) {
+          return normalized;
+        }
+      }
+      for (final key in ['data', 'user', 'userInfo', 'accountInfo']) {
+        final nested = _extractAvatarUrlFromJson(payload[key]);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+    if (payload is List) {
+      for (final item in payload) {
+        final nested = _extractAvatarUrlFromJson(item);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+    return null;
+  }
+
   String? _normalizeDisplayName(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) {
+    final normalized = _decodeHtmlEntities(value ?? '').trim();
+    if (normalized.isEmpty) {
       return null;
     }
     if (normalized.contains('@') || normalized.length > 24) {
@@ -315,6 +441,56 @@ class ChaoxingLocalClient {
     }
     return normalized;
   }
+
+  String? _avatarUrlFromCookie() {
+    final uid = _readCookie('UID') ?? _readCookie('uid') ?? _readCookie('_uid');
+    if (uid == null || uid.trim().isEmpty) {
+      return null;
+    }
+    return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(uid.trim())}_160';
+  }
+
+  String? _normalizeUrl(String? value) {
+    var normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    normalized = normalized.replaceAll(r'\/', '/');
+    if (normalized.startsWith('//')) {
+      return 'https:$normalized';
+    }
+    if (normalized.startsWith('http://')) {
+      return normalized.replaceFirst('http://', 'https://');
+    }
+    if (!normalized.startsWith('https://')) {
+      return null;
+    }
+    return normalized;
+  }
+
+  String _stripTags(String? html) {
+    if (html == null || html.isEmpty) {
+      return '';
+    }
+    return html.replaceAll(RegExp(r'<[^>]+>'), ' ');
+  }
+
+  String _decodeHtmlEntities(String value) {
+    return value
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'");
+  }
+}
+
+class _ChaoxingProfile {
+  const _ChaoxingProfile({this.displayName, this.avatarUrl});
+
+  final String? displayName;
+  final String? avatarUrl;
 }
 
 class _CourseWorkPage {

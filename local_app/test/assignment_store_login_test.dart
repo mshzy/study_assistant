@@ -33,7 +33,12 @@ void main() {
       expect(store.isAuthenticated, isTrue);
       expect(store.account, 'student');
       expect(store.profileDisplayName, '李雷');
+      expect(store.profileAvatarUrl, 'https://photo.chaoxing.com/p/998877_160');
       expect(await store.sessionStore.readChaoxingDisplayName(), '李雷');
+      expect(
+        await store.sessionStore.readChaoxingAvatarUrl(),
+        'https://photo.chaoxing.com/p/998877_160',
+      );
       expect(store.error, contains('同步'));
     },
   );
@@ -106,7 +111,11 @@ class _LoginOnlyChaoxingClient extends ChaoxingLocalClient {
     required String account,
     required String password,
   }) async {
-    return const ChaoxingLoginResult(success: true, displayName: '李雷');
+    return const ChaoxingLoginResult(
+      success: true,
+      displayName: '李雷',
+      avatarUrl: 'https://photo.chaoxing.com/p/998877_160',
+    );
   }
 
   @override
@@ -160,19 +169,25 @@ class _MemorySessionStore extends SecureSessionStore {
     required String account,
     required String password,
     String? displayName,
+    String? avatarUrl,
   }) async {
     this.account = account;
     this.password = password;
     chaoxingDisplayName = displayName;
+    chaoxingAvatarUrl = avatarUrl;
   }
 
   @override
   Future<String?> readChaoxingAccount() async => account;
 
   String? chaoxingDisplayName;
+  String? chaoxingAvatarUrl;
 
   @override
   Future<String?> readChaoxingDisplayName() async => chaoxingDisplayName;
+
+  @override
+  Future<String?> readChaoxingAvatarUrl() async => chaoxingAvatarUrl;
 
   @override
   Future<String?> readChaoxingPassword() async => password;
