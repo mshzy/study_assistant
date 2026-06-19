@@ -246,7 +246,7 @@ class ChaoxingLocalClient {
       redirectUrl,
       headers: {'Accept': 'text/html,application/xhtml+xml,*/*'},
     );
-    return _extractProfile(response?.data);
+    return _extractProfile(response?.data, useCookieAvatar: false);
   }
 
   Future<_ChaoxingProfile> _fetchProfile(
@@ -264,9 +264,10 @@ class ChaoxingLocalClient {
         uri,
         headers: {'Accept': 'application/json,text/html,*/*'},
       );
-      final fromResponse = response == null
+      final status = response?.statusCode ?? 0;
+      final fromResponse = response == null || status < 200 || status >= 300
           ? const _ChaoxingProfile()
-          : _extractProfile(response.data);
+          : _extractProfile(response.data, useCookieAvatar: false);
       final merged = _ChaoxingProfile(
         displayName: fromResponse.displayName ?? fallback.displayName,
         avatarUrl: fromResponse.avatarUrl ?? fallback.avatarUrl,
@@ -278,13 +279,17 @@ class ChaoxingLocalClient {
     return fallback;
   }
 
-  _ChaoxingProfile _extractProfile(dynamic payload) {
+  _ChaoxingProfile _extractProfile(
+    dynamic payload, {
+    bool useCookieAvatar = true,
+  }) {
     final decoded = _decodeJsonPayload(payload);
     final displayName = _extractDisplayName(decoded);
     final avatarFromPayload = _extractAvatarUrl(decoded);
     return _ChaoxingProfile(
       displayName: displayName,
-      avatarUrl: avatarFromPayload ?? _avatarUrlFromCookie(),
+      avatarUrl: avatarFromPayload ??
+          (useCookieAvatar ? _avatarUrlFromCookie() : null),
     );
   }
 
@@ -344,12 +349,7 @@ class ChaoxingLocalClient {
       r'"(?:realName|realname|name|nickName|nickname|uname|userName|username)"\s*:\s*"([^"]+)"',
       caseSensitive: false,
     ).firstMatch(body);
-    final htmlLike = jsonLike ??
-        RegExp(
-          r'''(?:realName|realname|name|nickName|nickname|uname|userName|username)["']?\s*[:=]\s*["']([^"']+)["']''',
-          caseSensitive: false,
-        ).firstMatch(body);
-    return _normalizeDisplayName(htmlLike?.group(1));
+    return _normalizeDisplayName(jsonLike?.group(1));
   }
 
   String? _extractDisplayNameFromJson(dynamic payload) {
@@ -423,6 +423,10 @@ class ChaoxingLocalClient {
           return normalized;
         }
       }
+      final puidAvatar = _avatarUrlFromId(payload['puid']);
+      if (puidAvatar != null) {
+        return puidAvatar;
+      }
       for (final key in ['msg', 'data', 'user', 'userInfo', 'accountInfo']) {
         final nested = _extractAvatarUrlFromJson(payload[key]);
         if (nested != null) {
@@ -453,11 +457,21 @@ class ChaoxingLocalClient {
   }
 
   String? _avatarUrlFromCookie() {
-    final uid = _readCookie('UID') ?? _readCookie('uid') ?? _readCookie('_uid');
-    if (uid == null || uid.trim().isEmpty) {
+    final id = _readCookie('puid') ??
+        _readCookie('PUID') ??
+        _readCookie('sso_puid') ??
+        _readCookie('UID') ??
+        _readCookie('uid') ??
+        _readCookie('_uid');
+    return _avatarUrlFromId(id);
+  }
+
+  String? _avatarUrlFromId(Object? id) {
+    final raw = id?.toString().trim();
+    if (raw == null || raw.isEmpty || !RegExp(r'^\d+$').hasMatch(raw)) {
       return null;
     }
-    return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(uid.trim())}_160';
+    return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(raw)}_160';
   }
 
   String? _normalizeUrl(String? value) {

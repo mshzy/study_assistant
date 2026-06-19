@@ -134,6 +134,18 @@ void main() {
               );
               return;
             }
+            if (options.uri.host == 'i.chaoxing.com' &&
+                options.uri.path == '/base') {
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data:
+                      '<html><head><meta name="viewport" content="width=device-width"></head></html>',
+                ),
+              );
+              return;
+            }
             handler.resolve(
               Response(
                 requestOptions: options,
