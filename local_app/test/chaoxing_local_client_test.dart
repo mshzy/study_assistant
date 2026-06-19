@@ -83,7 +83,8 @@ void main() {
 
     expect(result.success, isTrue);
     expect(result.displayName, '李雷');
-    expect(result.avatarUrl, 'https://photo.chaoxing.com/p/998877_160');
+    expect(
+        result.avatarUrl, 'https://photo.chaoxing.com/p/998877_160?ts=998877');
     expect(requests.map((request) => '${request.host}${request.path}'), [
       'passport2-api.chaoxing.com/v11/loginregister',
       'sso.chaoxing.com/login',
@@ -123,6 +124,8 @@ void main() {
                     'msg': {
                       'name': '郜小展',
                       'nick': '郜小展',
+                      'uid': 354629555,
+                      'puid': 402733611,
                       'pic': 'http://photo.chaoxing.com/p/402733611_120?flag=1',
                     },
                     'status': true,
@@ -164,7 +167,7 @@ void main() {
     expect(result.displayName, '郜小展');
     expect(
       result.avatarUrl,
-      'https://photo.chaoxing.com/p/402733611_120?flag=1',
+      'https://photo.chaoxing.com/p/354629555_160?ts=354629555',
     );
   });
 }

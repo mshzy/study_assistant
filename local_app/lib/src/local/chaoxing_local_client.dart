@@ -406,6 +406,12 @@ class ChaoxingLocalClient {
 
   String? _extractAvatarUrlFromJson(dynamic payload) {
     if (payload is Map) {
+      final uidAvatar = _avatarUrlFromId(
+        payload['uid'] ?? payload['UID'] ?? payload['_uid'],
+      );
+      if (uidAvatar != null) {
+        return uidAvatar;
+      }
       final candidates = [
         payload['avatar'],
         payload['avatarUrl'],
@@ -471,7 +477,7 @@ class ChaoxingLocalClient {
     if (raw == null || raw.isEmpty || !RegExp(r'^\d+$').hasMatch(raw)) {
       return null;
     }
-    return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(raw)}_160';
+    return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(raw)}_160?ts=$raw';
   }
 
   String? _normalizeUrl(String? value) {

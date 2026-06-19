@@ -436,6 +436,7 @@ class _ProfileHeader extends StatelessWidget {
                     child: avatarUrl == null
                         ? const _DefaultAvatar()
                         : Image.network(
+                            key: ValueKey(avatarUrl),
                             avatarUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
