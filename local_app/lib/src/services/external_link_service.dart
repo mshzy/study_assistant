@@ -7,4 +7,12 @@ class ExternalLinkService {
     final opened = await _channel.invokeMethod<bool>('openUrl', {'url': url});
     return opened ?? false;
   }
+
+  Future<bool> installApk(String filePath) async {
+    final opened = await _channel.invokeMethod<bool>(
+      'installApk',
+      {'filePath': filePath},
+    );
+    return opened ?? false;
+  }
 }

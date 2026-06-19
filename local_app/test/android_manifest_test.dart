@@ -62,6 +62,19 @@ void main() {
     ).readAsStringSync();
 
     expect(manifest, contains('android.permission.REQUEST_INSTALL_PACKAGES'));
+    expect(manifest, contains('androidx.core.content.FileProvider'));
+    expect(manifest, contains('@xml/update_file_paths'));
     expect(mainActivity, contains('application/vnd.android.package-archive'));
+    expect(mainActivity, contains('FileProvider.getUriForFile'));
+    expect(mainActivity, contains('installApk'));
+  });
+
+  test('Android FileProvider exposes update apk cache directory', () {
+    final paths = File(
+      'android/app/src/main/res/xml/update_file_paths.xml',
+    ).readAsStringSync();
+
+    expect(paths, contains('cache-path'));
+    expect(paths, contains('updates'));
   });
 }

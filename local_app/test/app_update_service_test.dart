@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:study_assistant_mobile/src/services/app_update_service.dart';
@@ -85,5 +87,42 @@ void main() {
     expect(AppUpdateService.isRemoteVersionNewer('1.0.10', '1.0.6'), isTrue);
     expect(AppUpdateService.isRemoteVersionNewer('1.0.6', '1.0.10'), isFalse);
     expect(AppUpdateService.isRemoteVersionNewer('v2.0.0', '1.9.9'), isTrue);
+  });
+
+  test('downloads GitHub apk asset to a local apk file', () async {
+    final tempDir = await Directory.systemTemp.createTemp('study-update-test-');
+    addTearDown(() => tempDir.delete(recursive: true));
+    final dio = Dio(
+      BaseOptions(validateStatus: (status) => status != null && status < 500),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<List<int>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: [1, 2, 3, 4],
+              ),
+            );
+          },
+        ),
+      );
+    final service = AppUpdateService(dio: dio);
+
+    final downloaded = await service.downloadApk(
+      const AppUpdateInfo(
+        versionName: '1.0.7',
+        releaseUrl:
+            'https://github.com/mshzy/study_assistant/releases/tag/v1.0.7',
+        apkName: 'study-assistant-v1.0.7.apk',
+        apkDownloadUrl:
+            'https://github.com/mshzy/study_assistant/releases/download/v1.0.7/study-assistant-v1.0.7.apk',
+        releaseNotes: '',
+      ),
+      targetDirectory: tempDir.path,
+    );
+
+    expect(downloaded.path, endsWith('study-assistant-v1.0.7.apk'));
+    expect(await File(downloaded.path).readAsBytes(), [1, 2, 3, 4]);
   });
 }

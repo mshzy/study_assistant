@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +7,7 @@ import 'package:study_assistant_mobile/src/features/profile_screen.dart';
 import 'package:study_assistant_mobile/src/models/assignment.dart';
 import 'package:study_assistant_mobile/src/services/app_update_service.dart';
 import 'package:study_assistant_mobile/src/services/assignment_store.dart';
+import 'package:study_assistant_mobile/src/services/external_link_service.dart';
 import 'package:study_assistant_mobile/src/services/local_notification_service.dart';
 import 'package:study_assistant_mobile/src/services/secure_session_store.dart';
 import 'package:study_assistant_mobile/src/services/widget_snapshot_service.dart';
@@ -49,6 +52,9 @@ void main() {
   testWidgets('profile checks app update and offers apk download',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
+    final downloadedApk = File(
+      '${Directory.systemTemp.path}/study-assistant-v1.0.7.apk',
+    );
     final updateService = _FakeUpdateService(
       update: const AppUpdateInfo(
         versionName: '1.0.7',
@@ -59,7 +65,9 @@ void main() {
             'https://github.com/mshzy/study_assistant/releases/download/v1.0.7/study-assistant-v1.0.7.apk',
         releaseNotes: '修复问题',
       ),
+      downloadedApk: downloadedApk,
     );
+    final externalLinkService = _FakeExternalLinkService();
     final store = AssignmentStore(
       sessionStore: _MemorySessionStore(),
       notificationService: _NoopNotificationService(),
@@ -73,6 +81,7 @@ void main() {
           body: ProfileScreen(
             store: store,
             updateService: updateService,
+            externalLinkService: externalLinkService,
           ),
         ),
       ),
@@ -85,6 +94,14 @@ void main() {
 
     expect(find.text('发现新版本 1.0.7'), findsOneWidget);
     expect(find.text('下载并安装'), findsOneWidget);
+
+    await tester.tap(find.text('下载并安装'));
+    await tester.pumpAndSettle();
+
+    expect(updateService.downloadedUpdate?.apkDownloadUrl,
+        contains('github.com/mshzy/study_assistant/releases/download'));
+    expect(externalLinkService.openedUrls, isEmpty);
+    expect(externalLinkService.installedApkPaths, [downloadedApk.path]);
   });
   testWidgets('profile settings contain reminder and sync entries',
       (tester) async {
@@ -112,9 +129,11 @@ void main() {
 }
 
 class _FakeUpdateService extends AppUpdateService {
-  _FakeUpdateService({this.update});
+  _FakeUpdateService({this.update, this.downloadedApk});
 
   final AppUpdateInfo? update;
+  final File? downloadedApk;
+  AppUpdateInfo? downloadedUpdate;
 
   @override
   Future<AppUpdateInfo?> checkForUpdate({
@@ -122,6 +141,33 @@ class _FakeUpdateService extends AppUpdateService {
     required int currentVersionCode,
   }) async {
     return update;
+  }
+
+  @override
+  Future<File> downloadApk(
+    AppUpdateInfo update, {
+    String? targetDirectory,
+  }) async {
+    downloadedUpdate = update;
+    return downloadedApk ??
+        File('${Directory.systemTemp.path}/${update.apkName}');
+  }
+}
+
+class _FakeExternalLinkService extends ExternalLinkService {
+  final openedUrls = <String>[];
+  final installedApkPaths = <String>[];
+
+  @override
+  Future<bool> openUrl(String url) async {
+    openedUrls.add(url);
+    return true;
+  }
+
+  @override
+  Future<bool> installApk(String filePath) async {
+    installedApkPaths.add(filePath);
+    return true;
   }
 }
 

@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.FileProvider
+import java.io.File
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -12,28 +14,15 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "study_assistant/external_links").setMethodCallHandler { call, result ->
-            if (call.method != "openUrl") {
-                result.notImplemented()
-                return@setMethodCallHandler
+            val opened = when (call.method) {
+                "openUrl" -> openExternalUrl(call.argument<String>("url"))
+                "installApk" -> installApk(call.argument<String>("filePath"))
+                else -> {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
             }
-
-            val url = call.argument<String>("url")
-            if (url.isNullOrBlank()) {
-                result.success(false)
-                return@setMethodCallHandler
-            }
-
-            val uri = Uri.parse(url)
-            val intent = Intent(Intent.ACTION_VIEW, uri)
-            if (url.endsWith(".apk", ignoreCase = true)) {
-                intent.setDataAndType(uri, "application/vnd.android.package-archive")
-            }
-            runCatching {
-                startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }.fold(
-                onSuccess = { result.success(true) },
-                onFailure = { result.success(false) },
-            )
+            result.success(opened)
         }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "study_assistant/permissions").setMethodCallHandler { call, result ->
             val opened = when (call.method) {
@@ -94,6 +83,33 @@ class MainActivity : FlutterActivity() {
         return openIntent(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 .setData(Uri.parse("package:$packageName"))
+        )
+    }
+
+    private fun openExternalUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) {
+            return false
+        }
+        return openIntent(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
+    private fun installApk(filePath: String?): Boolean {
+        if (filePath.isNullOrBlank()) {
+            return false
+        }
+        val apkFile = File(filePath)
+        if (!apkFile.exists()) {
+            return false
+        }
+        val uri = FileProvider.getUriForFile(
+            this,
+            "$packageName.update_file_provider",
+            apkFile
+        )
+        return openIntent(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         )
     }
 

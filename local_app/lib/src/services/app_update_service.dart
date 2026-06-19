@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AppUpdateInfo {
   const AppUpdateInfo({
@@ -85,6 +88,31 @@ class AppUpdateService {
     );
   }
 
+  Future<File> downloadApk(
+    AppUpdateInfo update, {
+    String? targetDirectory,
+  }) async {
+    final baseDirectory = targetDirectory == null
+        ? Directory(
+            '${(await getTemporaryDirectory()).path}${Platform.pathSeparator}updates',
+          )
+        : Directory(targetDirectory);
+    await baseDirectory.create(recursive: true);
+    final file = File(
+      '${baseDirectory.path}${Platform.pathSeparator}${_safeFileName(update.apkName)}',
+    );
+    final response = await _dio.get<List<int>>(
+      update.apkDownloadUrl,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300 || response.data == null) {
+      throw StateError('下载 APK 失败');
+    }
+    await file.writeAsBytes(response.data!, flush: true);
+    return file;
+  }
+
   static bool isRemoteVersionNewer(String remote, String current) {
     final remoteParts = _versionParts(remote);
     final currentParts = _versionParts(current);
@@ -153,5 +181,13 @@ class AppUpdateService {
       return value;
     }
     return int.tryParse(value?.toString() ?? '');
+  }
+
+  String _safeFileName(String value) {
+    final sanitized = value.replaceAll(RegExp(r'[\\/:*?"<>|]+'), '-').trim();
+    if (sanitized.isEmpty || !sanitized.toLowerCase().endsWith('.apk')) {
+      return 'study-assistant-update.apk';
+    }
+    return sanitized;
   }
 }

@@ -213,12 +213,24 @@ class ProfileScreen extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('正在从 GitHub 下载更新包...')),
+                  );
+                  final apkFile =
+                      await (updateService ?? AppUpdateService()).downloadApk(
+                    update,
+                  );
+                  if (context.mounted) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('安装包已下载，正在打开系统安装器')),
+                    );
+                  }
                   final opened =
                       await (externalLinkService ?? ExternalLinkService())
-                          .openUrl(update.apkDownloadUrl);
-                  if (!opened) {
+                          .installApk(apkFile.path);
+                  if (!opened && context.mounted) {
                     messenger.showSnackBar(
-                      const SnackBar(content: Text('无法打开 APK 下载链接')),
+                      const SnackBar(content: Text('无法打开系统安装器')),
                     );
                   }
                 },
