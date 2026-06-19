@@ -17,8 +17,9 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     return Scaffold(
-      body: SafeArea(child: child),
+      body: SafeArea(bottom: false, child: child),
       bottomNavigationBar: NavigationBar(
+        height: 76,
         selectedIndex: _indexFor(location),
         onDestinationSelected: (index) {
           switch (index) {
@@ -26,10 +27,10 @@ class AppShell extends StatelessWidget {
               context.go('/assignments');
               break;
             case 1:
-              context.go('/sync');
+              context.go('/calendar');
               break;
             case 2:
-              context.go('/reminders');
+              context.go('/stats');
               break;
             case 3:
               context.go('/profile');
@@ -43,14 +44,14 @@ class AppShell extends StatelessWidget {
             label: '作业',
           ),
           NavigationDestination(
-            icon: Icon(Icons.sync_outlined),
-            selectedIcon: Icon(Icons.sync),
-            label: '同步',
+            icon: Icon(Icons.calendar_today_outlined),
+            selectedIcon: Icon(Icons.calendar_today),
+            label: '日历',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
-            label: '提醒',
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: '统计',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -63,13 +64,15 @@ class AppShell extends StatelessWidget {
   }
 
   int _indexFor(String location) {
-    if (location.startsWith('/sync')) {
+    if (location.startsWith('/calendar')) {
       return 1;
     }
-    if (location.startsWith('/reminders')) {
+    if (location.startsWith('/stats')) {
       return 2;
     }
-    if (location.startsWith('/profile')) {
+    if (location.startsWith('/profile') ||
+        location.startsWith('/sync') ||
+        location.startsWith('/reminders')) {
       return 3;
     }
     return 0;
@@ -78,17 +81,17 @@ class AppShell extends StatelessWidget {
 
 class StudyAssistantTheme {
   static ThemeData get light {
-    const ink = Color(0xFF17211D);
-    const paper = Color(0xFFF7F8F8);
-    const mint = Color(0xFF20B8A4);
-    const amber = Color(0xFFE8A336);
+    const ink = Color(0xFF111827);
+    const paper = Color(0xFFF7FAFF);
+    const blue = Color(0xFF2F88FF);
+    const amber = Color(0xFFFF9F2E);
 
     return ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: mint,
+        seedColor: blue,
         brightness: Brightness.light,
         surface: paper,
-        primary: mint,
+        primary: blue,
         secondary: amber,
       ),
       scaffoldBackgroundColor: paper,
@@ -104,21 +107,21 @@ class StudyAssistantTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: Color(0xFFE7E9E8)),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE8EEF6)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
       ),
       navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: Color(0xFFD8F3EE),
+        indicatorColor: Color(0xFFE3F0FF),
       ),
     );
   }

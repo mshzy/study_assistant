@@ -55,8 +55,24 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.white,
           body: SafeArea(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(32, 64, 32, 24),
+              padding: EdgeInsets.fromLTRB(
+                32,
+                widget.addPlatformMode ? 18 : 64,
+                32,
+                24,
+              ),
               children: [
+                if (widget.addPlatformMode) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton.filledTonal(
+                      tooltip: '返回',
+                      onPressed: _goBack,
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 Text(
                   widget.addPlatformMode ? '添加平台账号' : '平台登录',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -280,6 +296,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (widget.store.isAuthenticated) {
       context.go('/assignments');
     }
+  }
+
+  void _goBack() {
+    final router = GoRouter.of(context);
+    if (router.canPop()) {
+      router.pop();
+      return;
+    }
+    context.go('/profile');
   }
 }
 

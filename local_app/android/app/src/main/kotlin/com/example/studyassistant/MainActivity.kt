@@ -23,8 +23,13 @@ class MainActivity : FlutterActivity() {
                 return@setMethodCallHandler
             }
 
+            val uri = Uri.parse(url)
+            val intent = Intent(Intent.ACTION_VIEW, uri)
+            if (url.endsWith(".apk", ignoreCase = true)) {
+                intent.setDataAndType(uri, "application/vnd.android.package-archive")
+            }
             runCatching {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }.fold(
                 onSuccess = { result.success(true) },
                 onFailure = { result.success(false) },

@@ -56,6 +56,23 @@ void main() {
     expect(find.text('数你最灵'), findsOneWidget);
   });
 
+  testWidgets('add platform flow shows a back button', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      shuniZuilingClient: _EmptySchoolListShuniZuilingClient(),
+    );
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: LoginScreen(store: store, addPlatformMode: true)),
+    );
+
+    expect(find.byTooltip('返回'), findsOneWidget);
+  });
+
   testWidgets('Shuni Zuiling form uses school dropdown from store',
       (tester) async {
     SharedPreferences.setMockInitialValues({});

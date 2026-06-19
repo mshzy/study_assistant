@@ -32,6 +32,8 @@ void main() {
 
       expect(store.isAuthenticated, isTrue);
       expect(store.account, 'student');
+      expect(store.profileDisplayName, '李雷');
+      expect(await store.sessionStore.readChaoxingDisplayName(), '李雷');
       expect(store.error, contains('同步'));
     },
   );
@@ -104,7 +106,7 @@ class _LoginOnlyChaoxingClient extends ChaoxingLocalClient {
     required String account,
     required String password,
   }) async {
-    return const ChaoxingLoginResult(success: true);
+    return const ChaoxingLoginResult(success: true, displayName: '李雷');
   }
 
   @override
@@ -157,13 +159,20 @@ class _MemorySessionStore extends SecureSessionStore {
   Future<void> saveChaoxingAccount({
     required String account,
     required String password,
+    String? displayName,
   }) async {
     this.account = account;
     this.password = password;
+    chaoxingDisplayName = displayName;
   }
 
   @override
   Future<String?> readChaoxingAccount() async => account;
+
+  String? chaoxingDisplayName;
+
+  @override
+  Future<String?> readChaoxingDisplayName() async => chaoxingDisplayName;
 
   @override
   Future<String?> readChaoxingPassword() async => password;

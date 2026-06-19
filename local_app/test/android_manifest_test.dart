@@ -52,4 +52,16 @@ void main() {
     expect(mainActivity, contains('openLockScreenNotificationSettings'));
     expect(mainActivity, contains('openBatterySettings'));
   });
+
+  test('Android host can open downloaded apk updates', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    final mainActivity = File(
+      'android/app/src/main/kotlin/com/example/studyassistant/MainActivity.kt',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android.permission.REQUEST_INSTALL_PACKAGES'));
+    expect(mainActivity, contains('application/vnd.android.package-archive'));
+  });
 }

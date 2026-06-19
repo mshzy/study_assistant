@@ -5,10 +5,15 @@ import 'chaoxing_api_parser.dart';
 import 'chaoxing_assignment_parser.dart';
 
 class ChaoxingLoginResult {
-  const ChaoxingLoginResult({required this.success, this.message});
+  const ChaoxingLoginResult({
+    required this.success,
+    this.message,
+    this.displayName,
+  });
 
   final bool success;
   final String? message;
+  final String? displayName;
 }
 
 class ChaoxingLocalClient {
@@ -61,7 +66,9 @@ class ChaoxingLocalClient {
         message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码',
       );
     }
-    return const ChaoxingLoginResult(success: true);
+    final displayName =
+        _extractDisplayName(response.data) ?? await _fetchDisplayName();
+    return ChaoxingLoginResult(success: true, displayName: displayName);
   }
 
   Future<List<Assignment>> fetchAssignments() async {
@@ -220,6 +227,93 @@ class ChaoxingLocalClient {
   String? _extractMessage(String body) {
     final match = RegExp(r'"(?:msg|message)"\s*:\s*"([^"]+)"').firstMatch(body);
     return match?.group(1);
+  }
+
+  Future<String?> _fetchDisplayName() async {
+    final candidates = [
+      'https://passport2-api.chaoxing.com/v11/getUserInfo',
+      'https://passport2.chaoxing.com/api/user/info',
+      'https://i.chaoxing.com/base',
+    ];
+    for (final uri in candidates) {
+      final response = await _safeGet<dynamic>(
+        uri,
+        headers: {'Accept': 'application/json,text/html,*/*'},
+      );
+      final name = _extractDisplayName(response?.data);
+      if (name != null) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  String? _extractDisplayName(dynamic payload) {
+    final direct = _extractDisplayNameFromJson(payload);
+    if (direct != null) {
+      return direct;
+    }
+    final body = payload?.toString() ?? '';
+    if (body.isEmpty) {
+      return null;
+    }
+    final jsonLike = RegExp(
+      r'"(?:realName|realname|name|nickName|nickname|uname|userName|username)"\s*:\s*"([^"]+)"',
+      caseSensitive: false,
+    ).firstMatch(body);
+    final htmlLike = jsonLike ??
+        RegExp(
+          r'''(?:realName|realname|name|nickName|nickname|uname|userName|username)["']?\s*[:=]\s*["']([^"']+)["']''',
+          caseSensitive: false,
+        ).firstMatch(body);
+    return _normalizeDisplayName(htmlLike?.group(1));
+  }
+
+  String? _extractDisplayNameFromJson(dynamic payload) {
+    if (payload is Map) {
+      final candidates = [
+        payload['realName'],
+        payload['realname'],
+        payload['name'],
+        payload['nickName'],
+        payload['nickname'],
+        payload['uname'],
+        payload['userName'],
+        payload['username'],
+      ];
+      for (final candidate in candidates) {
+        final normalized = _normalizeDisplayName(candidate?.toString());
+        if (normalized != null) {
+          return normalized;
+        }
+      }
+      for (final key in ['data', 'user', 'userInfo', 'accountInfo']) {
+        final nested = _extractDisplayNameFromJson(payload[key]);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+    if (payload is List) {
+      for (final item in payload) {
+        final nested = _extractDisplayNameFromJson(item);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+    return null;
+  }
+
+  String? _normalizeDisplayName(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    if (normalized.contains('@') || normalized.length > 24) {
+      return null;
+    }
+    return normalized;
   }
 }
 

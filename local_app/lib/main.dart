@@ -6,9 +6,11 @@ import 'src/app/app_deep_links.dart';
 import 'src/app/app_shell.dart';
 import 'src/features/assignment_detail_screen.dart';
 import 'src/features/assignment_list_screen.dart';
+import 'src/features/calendar_screen.dart';
 import 'src/features/login_screen.dart';
 import 'src/features/profile_screen.dart';
 import 'src/features/reminder_settings_screen.dart';
+import 'src/features/stats_screen.dart';
 import 'src/features/sync_status_screen.dart';
 import 'src/services/assignment_store.dart';
 import 'src/services/local_notification_service.dart';
@@ -121,6 +123,14 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
                 store: assignmentStore,
                 assignmentId: state.pathParameters['id']!,
               ),
+            ),
+            GoRoute(
+              path: '/calendar',
+              builder: (_, __) => CalendarScreen(store: assignmentStore),
+            ),
+            GoRoute(
+              path: '/stats',
+              builder: (_, __) => StatsScreen(store: assignmentStore),
             ),
             GoRoute(
               path: '/sync',

@@ -19,9 +19,18 @@ class SecureSessionStore {
   Future<void> saveChaoxingAccount({
     required String account,
     required String password,
+    String? displayName,
   }) async {
     await _storage.write(key: 'chaoxingAccount', value: account);
     await _storage.write(key: 'chaoxingPassword', value: password);
+    if (displayName == null || displayName.trim().isEmpty) {
+      await _storage.delete(key: 'chaoxingDisplayName');
+    } else {
+      await _storage.write(
+        key: 'chaoxingDisplayName',
+        value: displayName.trim(),
+      );
+    }
   }
 
   Future<String?> readChaoxingAccount() =>
@@ -29,6 +38,9 @@ class SecureSessionStore {
 
   Future<String?> readChaoxingPassword() =>
       _storage.read(key: 'chaoxingPassword');
+
+  Future<String?> readChaoxingDisplayName() =>
+      _storage.read(key: 'chaoxingDisplayName');
 
   Future<void> saveShuniZuilingAccount({
     required String schoolUserLocalId,

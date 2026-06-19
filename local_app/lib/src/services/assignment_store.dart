@@ -43,6 +43,7 @@ class AssignmentStore extends ChangeNotifier {
   bool _agreementAccepted = false;
   String? _error;
   String? _account;
+  String? _chaoxingDisplayName;
   String? _shuniZuilingAccount;
   String? _shuniZuilingSchoolCode;
   DateTime? _lastSyncAt;
@@ -72,6 +73,22 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   String? get chaoxingAccount => _account;
+  String get profileDisplayName {
+    final name = _chaoxingDisplayName?.trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+    final account = _account?.trim();
+    if (account != null && account.isNotEmpty) {
+      return account;
+    }
+    final shuniAccount = _shuniZuilingAccount?.trim();
+    if (shuniAccount != null && shuniAccount.isNotEmpty) {
+      return shuniAccount;
+    }
+    return '同学';
+  }
+
   String? get shuniZuilingAccount => _shuniZuilingAccount;
   List<ShuniZuilingSchool> get shuniZuilingSchools =>
       List.unmodifiable(_shuniZuilingSchools);
@@ -100,6 +117,7 @@ class AssignmentStore extends ChangeNotifier {
 
   Future<void> restoreSession() async {
     _account = await sessionStore.readChaoxingAccount();
+    _chaoxingDisplayName = await sessionStore.readChaoxingDisplayName();
     _shuniZuilingAccount = await sessionStore.readShuniZuilingAccount();
     _shuniZuilingSchoolCode = await sessionStore.readShuniZuilingSchoolCode();
     _authenticated = _account != null || _shuniZuilingAccount != null;
@@ -135,8 +153,10 @@ class AssignmentStore extends ChangeNotifier {
       await sessionStore.saveChaoxingAccount(
         account: account,
         password: password,
+        displayName: result.displayName,
       );
       _account = account;
+      _chaoxingDisplayName = result.displayName;
       _agreementAccepted = true;
       _authenticated = true;
       _restartAutoSyncTimer();
@@ -299,6 +319,7 @@ class AssignmentStore extends ChangeNotifier {
     await reminderRuleStore.clear();
     _authenticated = false;
     _account = null;
+    _chaoxingDisplayName = null;
     _shuniZuilingAccount = null;
     _shuniZuilingSchoolCode = null;
     _error = null;
