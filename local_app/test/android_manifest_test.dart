@@ -64,6 +64,7 @@ void main() {
     expect(manifest, contains('android.permission.REQUEST_INSTALL_PACKAGES'));
     expect(manifest, contains('androidx.core.content.FileProvider'));
     expect(manifest, contains('@xml/update_file_paths'));
+    expect(mainActivity, contains('Intent.ACTION_INSTALL_PACKAGE'));
     expect(mainActivity, contains('application/vnd.android.package-archive'));
     expect(mainActivity, contains('FileProvider.getUriForFile'));
     expect(mainActivity, contains('installApk'));
