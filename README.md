@@ -11,13 +11,7 @@
 
 ## 预览
 
-| 作业列表 | 桌面小组件 |
-| --- | --- |
-| ![作业列表](docs/images/app-homework-list.jpg) | ![桌面小组件](docs/images/home-widget.jpg) |
-
-| 新版界面预览 |
-| --- |
-| ![新版界面预览](docs/images/ui-redesign-preview-v1.png) |
+![学习通作业提醒新版界面](docs/images/app-preview-v1.0.7.png)
 
 ## 已实现能力
 
