@@ -406,12 +406,6 @@ class ChaoxingLocalClient {
 
   String? _extractAvatarUrlFromJson(dynamic payload) {
     if (payload is Map) {
-      final uidAvatar = _avatarUrlFromId(
-        payload['uid'] ?? payload['UID'] ?? payload['_uid'],
-      );
-      if (uidAvatar != null) {
-        return uidAvatar;
-      }
       final candidates = [
         payload['avatar'],
         payload['avatarUrl'],
@@ -432,6 +426,12 @@ class ChaoxingLocalClient {
       final puidAvatar = _avatarUrlFromId(payload['puid']);
       if (puidAvatar != null) {
         return puidAvatar;
+      }
+      final uidAvatar = _avatarUrlFromId(
+        payload['uid'] ?? payload['UID'] ?? payload['_uid'],
+      );
+      if (uidAvatar != null) {
+        return uidAvatar;
       }
       for (final key in ['msg', 'data', 'user', 'userInfo', 'accountInfo']) {
         final nested = _extractAvatarUrlFromJson(payload[key]);

@@ -167,7 +167,7 @@ void main() {
     expect(result.displayName, '郜小展');
     expect(
       result.avatarUrl,
-      'https://photo.chaoxing.com/p/354629555_160?ts=354629555',
+      'https://photo.chaoxing.com/p/402733611_120?flag=1',
     );
   });
 }
