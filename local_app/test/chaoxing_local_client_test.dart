@@ -67,6 +67,21 @@ void main() {
               return;
             }
 
+            if (options.uri.host == 'photo.chaoxing.com') {
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 302,
+                  headers: Headers.fromMap({
+                    'location': [
+                      'https://p.cldisk.com/star3/160_160c/998877.png',
+                    ],
+                  }),
+                ),
+              );
+              return;
+            }
+
             handler.resolve(
               Response(
                 requestOptions: options,
@@ -83,12 +98,12 @@ void main() {
 
     expect(result.success, isTrue);
     expect(result.displayName, '李雷');
-    expect(
-        result.avatarUrl, 'https://photo.chaoxing.com/p/998877_160?ts=998877');
+    expect(result.avatarUrl, 'https://p.cldisk.com/star3/160_160c/998877.png');
     expect(requests.map((request) => '${request.host}${request.path}'), [
       'passport2-api.chaoxing.com/v11/loginregister',
       'sso.chaoxing.com/login',
       'i.chaoxing.com/base',
+      'photo.chaoxing.com/p/998877_160',
     ]);
     expect(requests.last.headers['Cookie'], contains('UID=998877'));
   });
@@ -149,6 +164,24 @@ void main() {
               );
               return;
             }
+            if (options.uri.host == 'photo.chaoxing.com') {
+              expect(options.uri.path, '/p/402733611_120');
+              expect(options.uri.queryParameters['flag'], '1');
+              expect(options.uri.queryParameters['psize'], '160_160c');
+              expect(options.uri.queryParameters['ext'], 'png');
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 302,
+                  headers: Headers.fromMap({
+                    'location': [
+                      'https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png',
+                    ],
+                  }),
+                ),
+              );
+              return;
+            }
             handler.resolve(
               Response(
                 requestOptions: options,
@@ -167,7 +200,7 @@ void main() {
     expect(result.displayName, '郜小展');
     expect(
       result.avatarUrl,
-      'https://photo.chaoxing.com/p/402733611_120?flag=1',
+      'https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png',
     );
   });
 }

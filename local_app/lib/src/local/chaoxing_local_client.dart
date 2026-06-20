@@ -72,10 +72,11 @@ class ChaoxingLocalClient {
     }
     final sessionProfile = await _completeLoginSession(response.data);
     final profile = await _fetchProfile(response.data, sessionProfile);
+    final avatarUrl = await _resolveAvatarUrl(profile.avatarUrl);
     return ChaoxingLoginResult(
       success: true,
       displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: avatarUrl,
     );
   }
 
@@ -478,6 +479,45 @@ class ChaoxingLocalClient {
       return null;
     }
     return 'https://photo.chaoxing.com/p/${Uri.encodeComponent(raw)}_160?ts=$raw';
+  }
+
+  Future<String?> _resolveAvatarUrl(String? avatarUrl) async {
+    final normalized = _normalizeChaoxingAvatarUrl(avatarUrl);
+    if (normalized == null ||
+        !normalized.startsWith('https://photo.chaoxing.com/')) {
+      return normalized;
+    }
+    try {
+      final response = await _dio.get<dynamic>(
+        normalized,
+        options: Options(
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 400,
+          headers: _headers(
+              {'Accept': 'image/avif,image/webp,image/apng,image/*,*/*'}),
+        ),
+      );
+      final location = response.headers.value('location');
+      return _normalizeUrl(location) ?? normalized;
+    } catch (_) {
+      return normalized;
+    }
+  }
+
+  String? _normalizeChaoxingAvatarUrl(String? avatarUrl) {
+    final normalized = _normalizeUrl(avatarUrl);
+    if (normalized == null ||
+        !normalized.startsWith('https://photo.chaoxing.com/')) {
+      return normalized;
+    }
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) {
+      return normalized;
+    }
+    final query = Map<String, String>.from(uri.queryParameters)
+      ..['psize'] = '160_160c'
+      ..['ext'] = 'png';
+    return uri.replace(queryParameters: query).toString();
   }
 
   String? _normalizeUrl(String? value) {
