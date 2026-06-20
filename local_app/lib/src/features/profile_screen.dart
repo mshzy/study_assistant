@@ -380,6 +380,8 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedAvatarUrl = _profileAvatarUrl(avatarUrl);
+    final avatarHeaders = _profileAvatarHeaders(resolvedAvatarUrl);
     return Container(
       height: 236,
       decoration: const BoxDecoration(
@@ -433,11 +435,12 @@ class _ProfileHeader extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: avatarUrl == null
+                    child: resolvedAvatarUrl == null
                         ? const _DefaultAvatar()
                         : Image.network(
-                            key: ValueKey(avatarUrl),
-                            avatarUrl!,
+                            key: ValueKey(resolvedAvatarUrl),
+                            resolvedAvatarUrl,
+                            headers: avatarHeaders,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
                                 const _DefaultAvatar(),
@@ -477,6 +480,38 @@ class _ProfileHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _profileAvatarUrl(String? avatarUrl) {
+  final trimmed = avatarUrl?.trim();
+  if (trimmed == null || trimmed.isEmpty) {
+    return null;
+  }
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null) {
+    return trimmed;
+  }
+  if (uri.host.toLowerCase() != 'photo.chaoxing.com') {
+    return trimmed;
+  }
+  final query = Map<String, String>.from(uri.queryParameters)
+    ..['psize'] = '160_160c'
+    ..['ext'] = 'png';
+  return uri.replace(scheme: 'https', queryParameters: query).toString();
+}
+
+Map<String, String>? _profileAvatarHeaders(String? avatarUrl) {
+  final uri = Uri.tryParse(avatarUrl ?? '');
+  final host = uri?.host.toLowerCase();
+  if (host == null ||
+      (host != 'photo.chaoxing.com' && !host.endsWith('.cldisk.com'))) {
+    return null;
+  }
+  return const {
+    'Referer': 'https://photo.chaoxing.com/',
+    'User-Agent':
+        'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+  };
 }
 
 class _DefaultAvatar extends StatelessWidget {

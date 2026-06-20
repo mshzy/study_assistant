@@ -6,7 +6,7 @@
 
 - 版权归 HY 所有
 - GitHub：https://github.com/mshzy/study_assistant
-- 当前版本：1.0.15
+- 当前版本：1.0.7
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
 
 ## 预览
@@ -43,7 +43,7 @@
 ### 1. 安装
 
 1. 打开 GitHub Release 页面：https://github.com/mshzy/study_assistant/releases
-2. 下载最新版本 APK，例如 `study-assistant-v1.0.15.apk`。
+2. 下载最新版本 APK，例如 `study-assistant-v1.0.7.apk`。
 3. 在 Android 手机上打开 APK，根据系统提示允许安装。
 4. 首次打开 App 后，按提示授予通知权限。为了准时提醒，建议在“提醒”页开启精确闹钟、锁屏提醒和后台/自启动相关权限。
 
@@ -76,70 +76,21 @@
 - 不绕过学习通验证码、风控或加密保护。
 - 小组件不直接访问学习通或后端，只显示 App 写入的本地共享快照。
 
-## v1.0.15 更新
-
-- 学习通头像会请求 `160_160c/png` 尺寸并保存跳转后的 `p.cldisk.com` 最终地址，避免显示中间头像或旧尺寸头像。
-- 已用测试账号验证姓名为“郜小展”，头像地址为 `https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png`。
-- Android 版本更新为 `versionName=1.0.15`、`versionCode=26`。
-- APK SHA256：`3CD1AB22B84C34783F5B75C5A5E78426BEB167269AB22BB2D9DB09318DB9C187`。
-
-## v1.0.14 更新
-
-- 学习通头像优先级改为使用 SSO 返回的 `pic` 头像，匹配实际资料头像。
-- 当 `pic` 缺失时再回退到 `puid`，最后才使用 `uid/cookie` 头像。
-- Android 版本更新为 `versionName=1.0.14`、`versionCode=25`。
-- APK SHA256：`C86C607756A939BDAAAE09DCD2D77963580570ECE1538D459080B180F9AB5B39`。
-
-## v1.0.13 更新
-
-- 修复学习通头像优先级：手机号绑定多个身份时优先使用登录用户 `uid` 头像。
-- 头像 URL 加入稳定刷新参数，并让“我的”页按头像 URL 刷新图片组件，减少旧头像缓存。
-- Android 版本更新为 `versionName=1.0.13`、`versionCode=24`。
-- APK SHA256：`75DFE1349B2DE89CFBAC0D9930006AF1F7B8D5DF7151B6663393821B3B72F626`。
-
-## v1.0.12 更新
-
-- 修复学习通资料页 HTML 中 `meta name="viewport"` 被误识别成姓名的问题。
-- 优先使用学习通 SSO 返回的姓名和 `puid` 头像，避免手机号绑定多账号时头像取错。
-- Android 版本更新为 `versionName=1.0.12`、`versionCode=23`。
-- APK SHA256：`5252D83A63FBED5368A810006704D77AD8ABC7DD77A404709FE2B29C86E9AB2D`。
-
-## v1.0.11 更新
-
-- 自动更新下载时显示进度条、百分比和已下载大小。
-- 修复学习通 SSO 返回的嵌套姓名/头像没有写入“我的”页的问题。
-- 自动同步刷新学习通登录态时会回写新获取到的姓名和头像。
-- Android 版本更新为 `versionName=1.0.11`、`versionCode=22`。
-- APK SHA256：`CF233FD0223BCDA90FD23C4872896BF5C354492AB1EAFEA7C6634E58347458BE`。
-
-## v1.0.10 更新
-
-- 发布新的测试版本，用于继续验证 GitHub Release 自动更新链路。
-- Android 版本更新为 `versionName=1.0.10`、`versionCode=21`。
-- APK SHA256：`FECE0585CF15724DD804A219F04F7626DC68F5DDC4F153AE59D096F7EB207F99`。
-
-## v1.0.9 更新
-
-- 修复 App 内自动更新下载完成后仍可能被迅雷等第三方下载器接管的问题。
-- 安装更新时改用 Android 系统 APK 安装 Intent，优先打开系统安装器。
-- Android 版本更新为 `versionName=1.0.9`、`versionCode=20`。
-- APK SHA256：`A6FCCB99611E33A3E26DD7DA737649FD06F1118AFAB14CC7D81182267C4BDC9C`。
-
-## v1.0.8 更新
-
-- 用于验证 App 内 GitHub Release 自动更新流程。
-- 更新 README 预览图为新版四屏界面总览。
-- Android 版本更新为 `versionName=1.0.8`、`versionCode=19`。
-- APK SHA256：`A5EF4963179F1D36ED9188E9D6397892410214A891FC8DCAD60F7A795BE06335`。
-
 ## v1.0.7 更新
 
 - 修复学习通姓名和头像获取逻辑：登录后先跟随学习通 SSO 地址完成 cookie 落地，再访问学习通个人首页解析用户信息。
-- “我的”页支持显示学习通头像，头像加载失败时会自动回退到默认头像。
-- 学习通头像地址改为根据登录态 UID 生成 `photo.chaoxing.com` 官方头像地址。
+- 修复学习通资料页 HTML 中 `meta name="viewport"` 被误识别成姓名的问题。
+- 学习通头像优先使用 SSO 返回的 `pic`，再回退到 `puid`，最后才使用 `uid/cookie`。
+- 学习通头像会请求 `160_160c/png` 尺寸，并解析 `photo.chaoxing.com` 跳转后的 `p.cldisk.com` 最终地址。
+- “我的”页头像加载会携带学习通图片需要的 `Referer` 和移动端 `User-Agent`，修复 CDN 防盗链导致头像显示默认图的问题。
 - 学习通学生姓名和头像 URL 会保存到本地安全存储，重启后仍可显示。
-- Android 版本更新为 `versionName=1.0.7`、`versionCode=18`。
-- APK SHA256：`85F06FDD5ED342F74308B11A84D51932429F7D74246AEDE7558339DE1D213D49`。
+- 自动同步刷新学习通登录态时会回写新获取到的姓名和头像。
+- 自动更新下载时显示进度条、百分比和已下载大小。
+- 修复 App 内自动更新下载完成后被迅雷等第三方下载器接管的问题，安装更新时优先打开 Android 系统安装器。
+- 更新 README 预览图为新版四屏界面总览。
+- 已用测试账号验证姓名为“郜小展”，头像地址为 `https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png`。
+- Android 版本更新为 `versionName=1.0.7`、`versionCode=27`。
+- APK SHA256：`8BA3CAAF69F428805B92E0E1D3A515E8DB8BD17D2C02A26BE3533FCFA2BD9B5E`。
 
 ## v1.0.6 更新
 

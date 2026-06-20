@@ -47,7 +47,58 @@ void main() {
     expect(find.text('小明同学'), findsNothing);
     final image = tester.widget<Image>(find.byType(Image));
     expect((image.image as NetworkImage).url,
-        'https://photo.chaoxing.com/p/998877_160');
+        'https://photo.chaoxing.com/p/998877_160?psize=160_160c&ext=png');
+  });
+
+  testWidgets('profile avatar sends Chaoxing image headers', (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(
+        displayName: '鏉庨浄',
+        avatarUrl:
+            'https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png',
+      ),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+
+    await tester.pumpWidget(MaterialApp(home: ProfileScreen(store: store)));
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final provider = image.image as NetworkImage;
+    expect(
+      provider.url,
+      'https://p.cldisk.com/star3/160_160c/05055cacb0d79d5f723c99d1beca393a.png',
+    );
+    expect(provider.headers?['Referer'], 'https://photo.chaoxing.com/');
+    expect(provider.headers?['User-Agent'], contains('Mozilla/5.0'));
+  });
+
+  testWidgets('profile avatar normalizes old Chaoxing photo URLs',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(
+        displayName: '鏉庨浄',
+        avatarUrl: 'http://photo.chaoxing.com/p/402733611_120?flag=1',
+      ),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+
+    await tester.pumpWidget(MaterialApp(home: ProfileScreen(store: store)));
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final provider = image.image as NetworkImage;
+    expect(
+      provider.url,
+      'https://photo.chaoxing.com/p/402733611_120?flag=1&psize=160_160c&ext=png',
+    );
+    expect(provider.headers?['Referer'], 'https://photo.chaoxing.com/');
   });
 
   testWidgets('profile checks app update and offers apk download',
