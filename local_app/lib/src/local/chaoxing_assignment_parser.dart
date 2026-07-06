@@ -80,6 +80,9 @@ class ChaoxingAssignmentParser {
     if (_isCompletedPeerReview(cleanText)) {
       return null;
     }
+    if (_isInvalidPage(cleanText, block)) {
+      return null;
+    }
     final deadline = _extractDeadline(cleanText, now) ??
         _ParsedDeadline(
           rawText: '未识别截止时间',
@@ -271,6 +274,39 @@ class ChaoxingAssignmentParser {
     return RegExp(
       r'(未提交|已提交|待批阅|已完成|已过期|剩余|截止|开始|查看|得分|分数|成绩|20\d{2}[-/年])',
     ).hasMatch(text);
+  }
+
+  static bool _isInvalidPage(String cleanText, String block) {
+    if (cleanText.contains('无效的用户') ||
+        cleanText.contains('登录失效') ||
+        cleanText.contains('请先登录') ||
+        cleanText.contains('重新登录') ||
+        cleanText.contains('账号异常') ||
+        cleanText.contains('密码错误')) {
+      return true;
+    }
+    final jsSignals = [
+      'function back()',
+      'window.location.href',
+      'window.history.go',
+      'HOST = "',
+      'HOST_CP',
+    ];
+    for (final signal in jsSignals) {
+      if (block.contains(signal) && !_hasRealAssignmentContent(cleanText)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool _hasRealAssignmentContent(String cleanText) {
+    return cleanText.contains('作业') ||
+           cleanText.contains('任务') ||
+           cleanText.contains('考试') ||
+           cleanText.contains('截止') ||
+           cleanText.contains('提交') ||
+           cleanText.contains('待完成');
   }
 
   static bool _isCompletedPeerReview(String text) {

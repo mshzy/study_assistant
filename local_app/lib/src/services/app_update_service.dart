@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -94,7 +94,7 @@ class AppUpdateService {
         debugPrint('[UpdateCheck] APK url or name invalid');
         return null;
       }
-      debugPrint('[UpdateCheck] Update found! version=$remoteVersion');
+      debugPrint('[UpdateCheck] Update found! version=$remoteVersion url=$apkUrl');
       return AppUpdateInfo(
         versionName: remoteVersion,
         releaseUrl: release['html_url']?.toString() ??
@@ -125,22 +125,29 @@ class AppUpdateService {
     final file = File(
       '${baseDirectory.path}${Platform.pathSeparator}${_safeFileName(update.apkName)}',
     );
-    final response = await _dio.get<List<int>>(
-      update.apkDownloadUrl,
-      onReceiveProgress: onProgress,
-      options: Options(responseType: ResponseType.bytes),
-    );
-    final status = response.statusCode ?? 0;
-    if (status < 200 || status >= 300 || response.data == null) {
-      throw StateError('下载 APK 失败');
+
+    // Use a fresh Dio instance without API-specific headers for binary download
+    final downloadDio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(minutes: 5),
+      headers: const {'User-Agent': 'StudyAssistant/1.0'},
+    ));
+
+    try {
+      await downloadDio.download(
+        update.apkDownloadUrl,
+        file.path,
+        onReceiveProgress: onProgress,
+      );
+      return file;
+    } catch (e) {
+      if (file.existsSync()) {
+        try {
+          file.deleteSync();
+        } catch (_) {}
+      }
+      rethrow;
     }
-    final bytes = response.data!;
-    final totalBytes = _asInt(response.headers.value('content-length')) ??
-        update.apkSize ??
-        bytes.length;
-    onProgress?.call(bytes.length, totalBytes);
-    await file.writeAsBytes(bytes, flush: true);
-    return file;
   }
 
   static bool isRemoteVersionNewer(String remote, String current) {

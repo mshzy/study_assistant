@@ -108,6 +108,9 @@ class ChaoxingApiParser {
       if (_isCompletedPeerReview(activity, title ?? '')) {
         continue;
       }
+      if (_isInvalidTitle(title ?? '')) {
+        continue;
+      }
       final deadline = _deadlineFrom(activity);
       if (id == null || title == null || title.isEmpty || deadline == null) {
         continue;
@@ -264,6 +267,21 @@ class ChaoxingApiParser {
       return true;
     }
     return const {'6', '42', '43', '44', '45', '46', '47'}.contains(type);
+  }
+
+  static bool _isInvalidTitle(String title) {
+    if (title.isEmpty) return false;
+    final lower = title.toLowerCase();
+    if (lower.contains('??') ||
+        lower.contains('??') ||
+        lower.contains('??') ||
+        lower.contains('error') ||
+        lower.contains('invalid') ||
+        lower.contains('function ') ||
+        lower.contains('window.')) {
+      return true;
+    }
+    return false;
   }
 
   static bool _isCompletedPeerReview(
