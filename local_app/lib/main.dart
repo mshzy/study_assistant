@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -63,6 +63,7 @@ class StudyAssistantApp extends StatefulWidget {
 class _StudyAssistantAppState extends State<StudyAssistantApp>
     with WidgetsBindingObserver {
   AssignmentStore get assignmentStore => widget.assignmentStore;
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final GoRouter _router;
 
   @override
@@ -75,18 +76,24 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
   }
 
   Future<void> _checkUpdateOnStartup() async {
-    // Retry up to 2 times with delay in case of network issues
+    debugPrint('[UpdateCheck] _checkUpdateOnStartup START, version=${AppVersion.name}');
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
+        debugPrint('[UpdateCheck] Attempt $attempt...');
         final update = await AppUpdateService().checkForUpdate(
           currentVersionName: AppVersion.name,
           currentVersionCode: AppVersion.code,
         );
+        debugPrint('[UpdateCheck] checkForUpdate result: $update');
         if (update == null || !mounted) return;
-        _showUpdateDialog(update);
+        // Use postFrameCallback to ensure Navigator is ready
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showUpdateDialog(update);
+        });
         return;
-      } catch (e) {
-        debugPrint('Update check attempt $attempt failed: $e');
+      } catch (e, stack) {
+        debugPrint('[UpdateCheck] Attempt $attempt failed: $e');
+        debugPrint('[UpdateCheck] Stack: $stack');
         if (attempt < 1) {
           await Future.delayed(const Duration(seconds: 3));
         }
@@ -96,8 +103,10 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
 
   void _showUpdateDialog(AppUpdateInfo update) {
     if (!mounted) return;
+    final navigatorContext = _navigatorKey.currentContext;
+    if (navigatorContext == null) return;
     showDialog<void>(
-      context: context,
+      context: navigatorContext,
       builder: (ctx) => AlertDialog(
         title: const Text('发现新版本'),
         content: Text('v${update.versionName} 已发布，是否更新？\n\n${update.releaseNotes}'),
@@ -162,6 +171,7 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
 
   GoRouter _buildRouter() {
     return GoRouter(
+      navigatorKey: _navigatorKey,
       refreshListenable: assignmentStore,
       initialLocation:
           assignmentStore.isAuthenticated ? '/assignments' : '/login',
@@ -244,5 +254,18 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     if (location != null) {
       _router.go(location);
     }
+  }
+}
+
+class StudyAssistantTheme {
+  StudyAssistantTheme._();
+
+  static ThemeData get light {
+    const seedColor = Color(0xFF1565C0);
+    return ThemeData(
+      colorSchemeSeed: seedColor,
+      brightness: Brightness.light,
+      useMaterial3: true,
+    );
   }
 }

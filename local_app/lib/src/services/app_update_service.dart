@@ -1,6 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 class AppUpdateInfo {
@@ -46,46 +47,68 @@ class AppUpdateService {
     required String currentVersionName,
     required int currentVersionCode,
   }) async {
-    final response = await _dio.get<dynamic>(
-      '/repos/$owner/$repo/releases/latest',
-    );
-    final status = response.statusCode ?? 0;
-    if (status < 200 || status >= 300) {
-      throw StateError('检查更新失败');
-    }
-    final release = _asMap(response.data);
-    if (release == null) {
-      throw StateError('更新信息格式无效');
-    }
-    final rawTag = (release['tag_name'] ?? release['name'])?.toString();
-    if (rawTag == null || rawTag.trim().isEmpty) {
+    try {
+      debugPrint('[UpdateCheck] checkForUpdate called, current=$currentVersionName');
+      final response = await _dio.get<dynamic>(
+        '/repos/$owner/$repo/releases/latest',
+      );
+      final status = response.statusCode ?? 0;
+      debugPrint('[UpdateCheck] GitHub API status: $status');
+      if (status < 200 || status >= 300) {
+        debugPrint('[UpdateCheck] Non-2xx status, returning null');
+        return null;
+      }
+      final data = response.data;
+      if (data == null) {
+        debugPrint('[UpdateCheck] response.data is null');
+        return null;
+      }
+      final release = _asMap(data);
+      if (release == null) {
+        debugPrint('[UpdateCheck] release map is null');
+        return null;
+      }
+      final rawTag = (release['tag_name'] ?? release['name'])?.toString();
+      if (rawTag == null || rawTag.trim().isEmpty) {
+        debugPrint('[UpdateCheck] rawTag is null/empty');
+        return null;
+      }
+      debugPrint('[UpdateCheck] Remote tag: $rawTag');
+      final remoteVersion = normalizeVersionName(rawTag);
+      debugPrint('[UpdateCheck] Remote version: $remoteVersion, Current: $currentVersionName');
+      if (!isRemoteVersionNewer(remoteVersion, currentVersionName)) {
+        debugPrint('[UpdateCheck] Remote version not newer');
+        return null;
+      }
+      final asset = _findApkAsset(release['assets']);
+      if (asset == null) {
+        debugPrint('[UpdateCheck] No APK asset found');
+        return null;
+      }
+      final apkUrl = asset['browser_download_url']?.toString();
+      final apkName = asset['name']?.toString();
+      if (apkUrl == null ||
+          apkUrl.isEmpty ||
+          apkName == null ||
+          apkName.isEmpty) {
+        debugPrint('[UpdateCheck] APK url or name invalid');
+        return null;
+      }
+      debugPrint('[UpdateCheck] Update found! version=$remoteVersion');
+      return AppUpdateInfo(
+        versionName: remoteVersion,
+        releaseUrl: release['html_url']?.toString() ??
+            'https://github.com/$owner/$repo/releases/tag/$rawTag',
+        apkName: apkName,
+        apkDownloadUrl: apkUrl,
+        releaseNotes: release['body']?.toString() ?? '',
+        apkSize: _asInt(asset['size']),
+      );
+    } catch (e, stack) {
+      debugPrint('[UpdateCheck] Exception: $e');
+      debugPrint('[UpdateCheck] Stack: $stack');
       return null;
     }
-    final remoteVersion = normalizeVersionName(rawTag);
-    if (!isRemoteVersionNewer(remoteVersion, currentVersionName)) {
-      return null;
-    }
-    final asset = _findApkAsset(release['assets']);
-    if (asset == null) {
-      return null;
-    }
-    final apkUrl = asset['browser_download_url']?.toString();
-    final apkName = asset['name']?.toString();
-    if (apkUrl == null ||
-        apkUrl.isEmpty ||
-        apkName == null ||
-        apkName.isEmpty) {
-      return null;
-    }
-    return AppUpdateInfo(
-      versionName: remoteVersion,
-      releaseUrl: release['html_url']?.toString() ??
-          'https://github.com/$owner/$repo/releases/tag/$rawTag',
-      apkName: apkName,
-      apkDownloadUrl: apkUrl,
-      releaseNotes: release['body']?.toString() ?? '',
-      apkSize: _asInt(asset['size']),
-    );
   }
 
   Future<File> downloadApk(

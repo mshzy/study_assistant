@@ -1,4 +1,4 @@
-class AppVersion {
+﻿class AppVersion {
   const AppVersion._();
 
   static const name = '1.1.0';
