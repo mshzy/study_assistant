@@ -131,76 +131,68 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     final navigatorContext = _navigatorKey.currentContext;
     if (navigatorContext == null) return;
 
-    // Show download progress dialog
     showDialog<void>(
       context: navigatorContext,
       barrierDismissible: false,
-      builder: (ctx) {
+      builder: (dialogCtx) {
+        var started = false;
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            var _received = 0;
-            var _total = 0;
-            var _done = false;
-            var _error = false;
+            var received = 0;
+            var total = 0;
+            var done = false;
+            var error = false;
 
-            void startDownload() {
-              AppUpdateService().downloadApk(update, onProgress: (received, total) {
-                if (ctx.mounted) {
-                  setDialogState(() {
-                    _received = received;
-                    _total = total;
-                  });
-                }
-              }).then((file) async {
-                if (ctx.mounted) {
-                  setDialogState(() => _done = true);
-                  Navigator.of(ctx).pop();
-                  final success = await ExternalLinkService().installApk(file.path);
-                  final mc = _navigatorKey.currentContext;
-                  if (!success && mc != null && mc.mounted) {
-                    ScaffoldMessenger.of(mc).showSnackBar(
-                      const SnackBar(content: Text('无法打开系统安装器')),
-                    );
-                  }
-                }
-              }).catchError((_) {
-                if (ctx.mounted) {
-                  setDialogState(() => _error = true);
-                  Future.delayed(const Duration(seconds: 2), () {
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                  });
-                }
+            if (!started) {
+              started = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _doDownload(
+                  update: update,
+                  onProgress: (r, t) {
+                    if (ctx.mounted) {
+                      setDialogState(() { received = r; total = t; });
+                    }
+                  },
+                  onDone: () {
+                    if (ctx.mounted) {
+                      setDialogState(() => done = true);
+                      try { Navigator.of(ctx).pop(); } catch (_) {}
+                    }
+                  },
+                  onError: () {
+                    if (ctx.mounted) {
+                      setDialogState(() => error = true);
+                    }
+                  },
+                );
               });
             }
 
-            startDownload();
-
             return AlertDialog(
-              title: Text(_error ? '下载失败' : (_done ? '下载完成' : '正在下载更新包...')),
+              title: Text(error ? '\u4e0b\u8f7d\u5931\u8d25' : (done ? '\u4e0b\u8f7d\u5b8c\u6210' : '\u6b63\u5728\u4e0b\u8f7d\u66f4\u65b0\u5305...')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (!_error && !_done) ...[
+                  if (!error && !done) ...[
                     LinearProgressIndicator(
-                      value: _total > 0 ? _received / _total : null,
+                      value: total > 0 ? received / total : null,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _total > 0
-                          ? '${(_received / 1024 / 1024).toStringAsFixed(1)} MB / ${(_total / 1024 / 1024).toStringAsFixed(1)} MB'
-                          : '连接中...',
+                      total > 0
+                          ? '{(received / 1024 / 1024).toStringAsFixed(1)} MB / {(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                          : '\u8fde\u63a5\u4e2d...',
                       style: Theme.of(ctx).textTheme.bodySmall,
                     ),
                   ],
-                  if (_error)
-                    const Text('下载更新包失败，请稍后再试'),
+                  if (error) const Text('\u4e0b\u8f7d\u66f4\u65b0\u5305\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5'),
                 ],
               ),
-              actions: _error
+              actions: error
                   ? [
                       TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('关闭'),
+                        onPressed: () { try { Navigator.of(ctx).pop(); } catch (_) {} },
+                        child: const Text('\u5173\u95ed'),
                       ),
                     ]
                   : null,
@@ -210,6 +202,28 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
       },
     );
   }
+
+  Future<void> _doDownload({
+    required AppUpdateInfo update,
+    required void Function(int, int) onProgress,
+    required void Function() onDone,
+    required void Function() onError,
+  }) async {
+    try {
+      final file = await AppUpdateService().downloadApk(update, onProgress: onProgress);
+      onDone();
+      final success = await ExternalLinkService().installApk(file.path);
+      final mc = _navigatorKey.currentContext;
+      if (!success && mc != null && mc.mounted) {
+        ScaffoldMessenger.of(mc).showSnackBar(
+          const SnackBar(content: Text('\u65e0\u6cd5\u6253\u5f00\u7cfb\u7edf\u5b89\u88c5\u5668')),
+        );
+      }
+    } catch (_) {
+      onError();
+    }
+  }
+
 
   @override
   void dispose() {
