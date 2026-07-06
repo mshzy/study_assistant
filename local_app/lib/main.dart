@@ -71,19 +71,27 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     WidgetsBinding.instance.addObserver(this);
     _router = _buildRouter();
     widget.notificationService.setPayloadHandler(_handleNotificationPayload);
-    _checkUpdateOnStartup();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdateOnStartup());
   }
 
   Future<void> _checkUpdateOnStartup() async {
-    await WidgetsBinding.instance.endOfFrame;
-    try {
-      final update = await AppUpdateService().checkForUpdate(
-        currentVersionName: AppVersion.name,
-        currentVersionCode: AppVersion.code,
-      );
-      if (update == null || !mounted) return;
-      _showUpdateDialog(update);
-    } catch (_) {}
+    // Retry up to 2 times with delay in case of network issues
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final update = await AppUpdateService().checkForUpdate(
+          currentVersionName: AppVersion.name,
+          currentVersionCode: AppVersion.code,
+        );
+        if (update == null || !mounted) return;
+        _showUpdateDialog(update);
+        return;
+      } catch (e) {
+        debugPrint('Update check attempt $attempt failed: $e');
+        if (attempt < 1) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+      }
+    }
   }
 
   void _showUpdateDialog(AppUpdateInfo update) {
