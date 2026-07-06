@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -128,21 +128,87 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
   }
 
   Future<void> _downloadAndInstall(AppUpdateInfo update) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('正在下载更新包...'), duration: Duration(seconds: 2)),
+    final navigatorContext = _navigatorKey.currentContext;
+    if (navigatorContext == null) return;
+
+    // Show download progress dialog
+    showDialog<void>(
+      context: navigatorContext,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            var _received = 0;
+            var _total = 0;
+            var _done = false;
+            var _error = false;
+
+            void startDownload() {
+              AppUpdateService().downloadApk(update, onProgress: (received, total) {
+                if (ctx.mounted) {
+                  setDialogState(() {
+                    _received = received;
+                    _total = total;
+                  });
+                }
+              }).then((file) async {
+                if (ctx.mounted) {
+                  setDialogState(() => _done = true);
+                  Navigator.of(ctx).pop();
+                  final success = await ExternalLinkService().installApk(file.path);
+                  final mc = _navigatorKey.currentContext;
+                  if (!success && mc != null && mc.mounted) {
+                    ScaffoldMessenger.of(mc).showSnackBar(
+                      const SnackBar(content: Text('无法打开系统安装器')),
+                    );
+                  }
+                }
+              }).catchError((_) {
+                if (ctx.mounted) {
+                  setDialogState(() => _error = true);
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                  });
+                }
+              });
+            }
+
+            startDownload();
+
+            return AlertDialog(
+              title: Text(_error ? '下载失败' : (_done ? '下载完成' : '正在下载更新包...')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_error && !_done) ...[
+                    LinearProgressIndicator(
+                      value: _total > 0 ? _received / _total : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _total > 0
+                          ? '${(_received / 1024 / 1024).toStringAsFixed(1)} MB / ${(_total / 1024 / 1024).toStringAsFixed(1)} MB'
+                          : '连接中...',
+                      style: Theme.of(ctx).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (_error)
+                    const Text('下载更新包失败，请稍后再试'),
+                ],
+              ),
+              actions: _error
+                  ? [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('关闭'),
+                      ),
+                    ]
+                  : null,
+            );
+          },
+        );
+      },
     );
-    try {
-      final file = await AppUpdateService().downloadApk(update);
-      final success = await ExternalLinkService().installApk(file.path);
-      if (!success && mounted) {
-        messenger.showSnackBar(const SnackBar(content: Text('无法打开系统安装器')));
-      }
-    } catch (_) {
-      if (mounted) {
-        messenger.showSnackBar(const SnackBar(content: Text('下载更新包失败，请稍后再试')));
-      }
-    }
   }
 
   @override
@@ -254,18 +320,5 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     if (location != null) {
       _router.go(location);
     }
-  }
-}
-
-class StudyAssistantTheme {
-  StudyAssistantTheme._();
-
-  static ThemeData get light {
-    const seedColor = Color(0xFF1565C0);
-    return ThemeData(
-      colorSchemeSeed: seedColor,
-      brightness: Brightness.light,
-      useMaterial3: true,
-    );
   }
 }
