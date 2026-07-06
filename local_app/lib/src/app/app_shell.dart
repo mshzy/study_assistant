@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../services/assignment_store.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
     required this.assignmentStore,
@@ -14,10 +14,34 @@ class AppShell extends StatelessWidget {
   final Widget child;
 
   @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.assignmentStore.runDueAutoSync();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     return Scaffold(
-      body: SafeArea(bottom: false, child: child),
+      body: SafeArea(bottom: false, child: widget.child),
       bottomNavigationBar: NavigationBar(
         height: 76,
         selectedIndex: _indexFor(location),

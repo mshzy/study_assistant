@@ -380,13 +380,19 @@ class AssignmentStore extends ChangeNotifier {
     }
     for (final source in sources) {
       try {
-        if (refreshSession) {
-          await source.refresh();
-        }
+        // Try fetching with existing session first (fast path)
         incoming.addAll(await source.fetch());
-      } catch (error) {
-        failedPrefixes.add(source.prefix);
-        errors.add(error);
+      } catch (_) {
+        // Fetch failed; refresh session and retry once
+        try {
+          if (refreshSession) {
+            await source.refresh();
+          }
+          incoming.addAll(await source.fetch());
+        } catch (error) {
+          failedPrefixes.add(source.prefix);
+          errors.add(error);
+        }
       }
     }
     if (incoming.isEmpty && errors.isNotEmpty) {

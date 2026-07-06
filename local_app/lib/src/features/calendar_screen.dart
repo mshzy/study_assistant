@@ -1,23 +1,68 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../models/assignment.dart';
 import '../services/assignment_store.dart';
 
-class CalendarScreen extends StatelessWidget {
+class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key, required this.store});
 
   final AssignmentStore store;
 
   @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime? _selectedDate;
+
+  void _previousMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+    });
+  }
+
+  void _onDaySelected(int day) {
+    final tapped = DateTime(_currentMonth.year, _currentMonth.month, day);
+    setState(() {
+      if (_selectedDate != null &&
+          _selectedDate!.year == tapped.year &&
+          _selectedDate!.month == tapped.month &&
+          _selectedDate!.day == tapped.day) {
+        _selectedDate = null;
+      } else {
+        _selectedDate = tapped;
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: store,
+      animation: widget.store,
       builder: (context, _) {
-        final assignments = store.visibleAssignments;
-        final grouped = _groupByDate(assignments);
-        final month = DateFormat('yyyy年M月', 'zh_CN').format(DateTime.now());
+        final assignments = widget.store.visibleAssignments;
+        final filtered = _selectedDate == null
+            ? assignments
+            : assignments
+                .where((a) =>
+                    a.deadlineAt.year == _selectedDate!.year &&
+                    a.deadlineAt.month == _selectedDate!.month &&
+                    a.deadlineAt.day == _selectedDate!.day)
+                .toList()
+              ..sort((a, b) => a.deadlineAt.compareTo(b.deadlineAt));
+
+        final grouped = _groupByDate(filtered);
+        final monthLabel =
+            DateFormat('yyyy年M月', 'zh_CN').format(_currentMonth);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
           children: [
@@ -32,18 +77,47 @@ class CalendarScreen extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w900),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: store.syncAssignments,
-                  icon: const Icon(Icons.filter_list, size: 18),
-                  label: const Text('筛选'),
-                ),
+                if (_selectedDate != null)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _selectedDate = null),
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('清除筛选'),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: widget.store.syncAssignments,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('刷新'),
+                  ),
               ],
             ),
             const SizedBox(height: 18),
-            _MonthCard(month: month, assignments: assignments),
+            _MonthCard(
+              month: monthLabel,
+              currentMonth: _currentMonth,
+              selectedDate: _selectedDate,
+              assignments: assignments,
+              onPrevious: _previousMonth,
+              onNext: _nextMonth,
+              onDaySelected: _onDaySelected,
+            ),
             const SizedBox(height: 18),
+            if (_selectedDate != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  DateFormat('M月d日 EEEE', 'zh_CN').format(_selectedDate!),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w900),
+                ),
+              ),
             if (grouped.isEmpty)
               const _CalendarEmpty()
+            else if (_selectedDate != null)
+              for (final assignment in filtered)
+                _CalendarAssignmentTile(assignment: assignment)
             else
               for (final entry in grouped.entries) ...[
                 _DateHeader(date: entry.key),
@@ -75,18 +149,38 @@ class CalendarScreen extends StatelessWidget {
 }
 
 class _MonthCard extends StatelessWidget {
-  const _MonthCard({required this.month, required this.assignments});
+  const _MonthCard({
+    required this.month,
+    required this.currentMonth,
+    required this.selectedDate,
+    required this.assignments,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onDaySelected,
+  });
 
   final String month;
+  final DateTime currentMonth;
+  final DateTime? selectedDate;
   final List<Assignment> assignments;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final ValueChanged<int> onDaySelected;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month);
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final dueDays = assignments.map((item) => item.deadlineAt.day).toSet();
+    final today = DateTime.now();
+    final firstDay = DateTime(currentMonth.year, currentMonth.month);
+    final daysInMonth =
+        DateTime(currentMonth.year, currentMonth.month + 1, 0).day;
+    final dueDays = assignments
+        .where((a) =>
+            a.deadlineAt.year == currentMonth.year &&
+            a.deadlineAt.month == currentMonth.month)
+        .map((a) => a.deadlineAt.day)
+        .toSet();
     final leading = firstDay.weekday % 7;
+
     final cells = <Widget>[
       for (final label in const ['日', '一', '二', '三', '四', '五', '六'])
         Center(
@@ -102,10 +196,18 @@ class _MonthCard extends StatelessWidget {
       for (var day = 1; day <= daysInMonth; day += 1)
         _DayCell(
           day: day,
-          selected: day == now.day,
+          isToday: today.year == currentMonth.year &&
+              today.month == currentMonth.month &&
+              today.day == day,
+          selected: selectedDate != null &&
+              selectedDate!.year == currentMonth.year &&
+              selectedDate!.month == currentMonth.month &&
+              selectedDate!.day == day,
           hasAssignment: dueDays.contains(day),
+          onTap: () => onDaySelected(day),
         ),
     ];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -113,7 +215,13 @@ class _MonthCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.chevron_left, color: Color(0xFF7C8796)),
+                IconButton(
+                  onPressed: onPrevious,
+                  icon: const Icon(Icons.chevron_left),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFF7C8796),
+                  ),
+                ),
                 Expanded(
                   child: Text(
                     month,
@@ -124,7 +232,13 @@ class _MonthCard extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w900),
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFF7C8796)),
+                IconButton(
+                  onPressed: onNext,
+                  icon: const Icon(Icons.chevron_right),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFF7C8796),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -146,45 +260,64 @@ class _MonthCard extends StatelessWidget {
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
+    required this.isToday,
     required this.selected,
     required this.hasAssignment,
+    required this.onTap,
   });
 
   final int day;
+  final bool isToday;
   final bool selected;
   final bool hasAssignment;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: selected ? colorScheme.primary : Colors.transparent,
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Text(
-            '$day',
-            style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF111827),
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-            ),
-          ),
-          if (hasAssignment)
-            Positioned(
-              bottom: 6,
-              child: Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected ? Colors.white : const Color(0xFFFF9F2E),
-                ),
+    final bgColor = selected
+        ? colorScheme.primary
+        : isToday
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent;
+    final textColor = selected
+        ? Colors.white
+        : isToday
+            ? colorScheme.primary
+            : const Color(0xFF111827);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: bgColor,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(
+              '$day',
+              style: TextStyle(
+                color: textColor,
+                fontWeight:
+                    isToday || selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
-        ],
+            if (hasAssignment)
+              Positioned(
+                bottom: 6,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected ? Colors.white : const Color(0xFFFF9F2E),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

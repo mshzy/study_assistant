@@ -80,10 +80,11 @@ class ChaoxingAssignmentParser {
     if (_isCompletedPeerReview(cleanText)) {
       return null;
     }
-    final deadline = _extractDeadline(cleanText, now);
-    if (deadline == null) {
-      return null;
-    }
+    final deadline = _extractDeadline(cleanText, now) ??
+        _ParsedDeadline(
+          rawText: '未识别截止时间',
+          value: now.add(const Duration(days: 30)),
+        );
 
     final title = _firstMatch(block, [
           RegExp(
@@ -138,6 +139,9 @@ class ChaoxingAssignmentParser {
   static _ParsedDeadline? _extractDeadline(String cleanText, DateTime now) {
     final absolute = _firstMatch(cleanText, [
       RegExp(r'(20\d{2}[-/年]\d{1,2}[-/月]\d{1,2}日?\s+\d{1,2}:\d{2}(?::\d{2})?)'),
+      RegExp(r'(截止时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
+      RegExp(r'(结束时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
+      RegExp(r'(20\d{2}[-/]\d{1,2}[-/]\d{1,2})'),
     ]);
     if (absolute != null) {
       return _ParsedDeadline(

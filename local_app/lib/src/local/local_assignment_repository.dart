@@ -24,7 +24,6 @@ class LocalAssignmentRepository {
     return assignments
         .where(
           (assignment) =>
-              !assignment.isCompleted &&
               !hiddenCompletedIds.contains(assignment.id) &&
               !_isCompletedPeerReview(assignment),
         )
@@ -61,21 +60,23 @@ class LocalAssignmentRepository {
     }
     await _saveCompletedIds(prefs, hiddenCompletedIds);
 
-    final assignments = await loadAssignments();
-    final updated = completed
-        ? assignments
-            .where((assignment) => assignment.id != assignmentId)
-            .toList()
-        : assignments
-            .map(
-              (assignment) => assignment.id == assignmentId
-                  ? assignment.copyWith(
-                      status: _statusFor(assignment.deadlineAt),
-                      clearCompletedAt: true,
-                    )
-                  : assignment,
-            )
-            .toList();
+    final allAssignments = await _loadRawAssignments(prefs);
+    final updated = allAssignments.map((assignment) {
+      if (assignment.id != assignmentId) {
+        return assignment;
+      }
+      if (completed) {
+        return assignment.copyWith(
+          status: 'completed',
+          completedAt: DateTime.now(),
+        );
+      } else {
+        return assignment.copyWith(
+          status: _statusFor(assignment.deadlineAt),
+          clearCompletedAt: true,
+        );
+      }
+    }).toList();
     await prefs.setString(
       _assignmentsKey,
       jsonEncode(updated.map((item) => item.toJson()).toList()),
@@ -101,26 +102,49 @@ class LocalAssignmentRepository {
     List<Assignment> incoming, {
     Set<String> hiddenCompletedIds = const {},
   }) {
-    final effectiveHiddenCompletedIds = {
-      ...hiddenCompletedIds,
-      for (final assignment in existing.where((item) => item.isCompleted))
-        assignment.id,
-    };
+    final effectiveHiddenCompletedIds = Set<String>.from(hiddenCompletedIds);
     final byId = <String, Assignment>{};
+    for (final assignment in existing) {
+      if (assignment.isCompleted) {
+        byId[assignment.id] = assignment;
+      }
+    }
     for (final assignment in incoming) {
       if (effectiveHiddenCompletedIds.contains(assignment.id) ||
-          assignment.isCompleted ||
           _isCompletedPeerReview(assignment)) {
         continue;
       }
-      byId[assignment.id] = assignment.copyWith(
-        status: _statusFor(assignment.deadlineAt),
-        clearCompletedAt: true,
-      );
+      if (assignment.isCompleted) {
+        byId[assignment.id] = assignment;
+        continue;
+      }
+      final existingCompleted = existing
+          .where((e) => e.id == assignment.id && e.isCompleted)
+          .firstOrNull;
+      if (existingCompleted != null) {
+        byId[assignment.id] = existingCompleted;
+      } else {
+        byId[assignment.id] = assignment.copyWith(
+          status: _statusFor(assignment.deadlineAt),
+          clearCompletedAt: true,
+        );
+      }
     }
     final merged = byId.values.toList()
       ..sort((a, b) => a.deadlineAt.compareTo(b.deadlineAt));
     return merged;
+  }
+
+  static Future<List<Assignment>> _loadRawAssignments(
+      SharedPreferences prefs) async {
+    final raw = prefs.getString(_assignmentsKey);
+    if (raw == null || raw.isEmpty) {
+      return [];
+    }
+    final data = jsonDecode(raw) as List<dynamic>;
+    return data
+        .map((item) => Assignment.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   static Set<String> _loadCompletedIds(SharedPreferences prefs) {
