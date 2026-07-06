@@ -180,7 +180,7 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
                     const SizedBox(height: 12),
                     Text(
                       total > 0
-                          ? '{(received / 1024 / 1024).toStringAsFixed(1)} MB / {(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                          ? '${(received * 100 / total).toStringAsFixed(0)}%'
                           : '\u8fde\u63a5\u4e2d...',
                       style: Theme.of(ctx).textTheme.bodySmall,
                     ),
