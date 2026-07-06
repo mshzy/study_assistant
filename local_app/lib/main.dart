@@ -12,6 +12,9 @@ import 'src/features/profile_screen.dart';
 import 'src/features/reminder_settings_screen.dart';
 import 'src/features/stats_screen.dart';
 import 'src/features/sync_status_screen.dart';
+import 'src/services/app_update_service.dart';
+import 'src/services/external_link_service.dart';
+import 'src/app/app_version.dart';
 import 'src/services/assignment_store.dart';
 import 'src/services/local_notification_service.dart';
 import 'src/services/reminder_rule_store.dart';
@@ -68,6 +71,61 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     WidgetsBinding.instance.addObserver(this);
     _router = _buildRouter();
     widget.notificationService.setPayloadHandler(_handleNotificationPayload);
+    _checkUpdateOnStartup();
+  }
+
+  Future<void> _checkUpdateOnStartup() async {
+    await WidgetsBinding.instance.endOfFrame;
+    try {
+      final update = await AppUpdateService().checkForUpdate(
+        currentVersionName: AppVersion.name,
+        currentVersionCode: AppVersion.code,
+      );
+      if (update == null || !mounted) return;
+      _showUpdateDialog(update);
+    } catch (_) {}
+  }
+
+  void _showUpdateDialog(AppUpdateInfo update) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('发现新版本'),
+        content: Text('v${update.versionName} 已发布，是否更新？\n\n${update.releaseNotes}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('稍后'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _downloadAndInstall(update);
+            },
+            child: const Text('立即更新'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadAndInstall(AppUpdateInfo update) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('正在下载更新包...'), duration: Duration(seconds: 2)),
+    );
+    try {
+      final file = await AppUpdateService().downloadApk(update);
+      final success = await ExternalLinkService().installApk(file.path);
+      if (!success && mounted) {
+        messenger.showSnackBar(const SnackBar(content: Text('无法打开系统安装器')));
+      }
+    } catch (_) {
+      if (mounted) {
+        messenger.showSnackBar(const SnackBar(content: Text('下载更新包失败，请稍后再试')));
+      }
+    }
   }
 
   @override
