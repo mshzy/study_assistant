@@ -6,7 +6,7 @@
 
 - 版权归 HY 所有
 - GitHub：https://github.com/mshzy/study_assistant
-- 当前版本：1.0.7
+- 当前版本：1.1.0
 - 开源协议：MIT License，详见 [LICENSE](LICENSE)
 
 ## 预览
@@ -82,6 +82,25 @@
 - APK SHA256：2DB920EBF1FF8133C01BA71704D9DE59CC83ABC2BE7F69B21CFE673E88F6D90A。
 - 修复学习通错误页面（"无效的用户"）被误解析为作业的问题。
 - 使用 release keystore 正式签名发布，确保自动升级签名一致。
+
+## v1.1.0 更新
+
+- 修复自动更新检测崩溃：GitHub API 异常时不再抛出 StateError，全部静默返回 null。
+- 修复更新弹窗 Null check 崩溃：使用 GoRouter navigatorKey 确保 dialog 显示时 Navigator 就绪。
+- 下载 APK 改用 dio.download() 流式下载，进度条显示百分比进度。
+- 下载使用独立 Dio 实例，避免 API 专用 Accept header 干扰二进制下载。
+- 清理重复的 StudyAssistantTheme，恢复 app_shell.dart 原始主题颜色。
+- Android versionName=1.1.0、versionCode=30。
+- APK SHA256：52F90887CE3BC4DB3BA323E651D3561E45B9ADAE92E8E6EE25B790008867FEEB。
+
+## v1.0.9 更新
+
+- 修复部分课程作业不显示的问题：deadline 解析失败时不再丢弃整个作业。
+- 修复统计页完成率始终为 0% 的问题：保留已完成作业在列表中用于统计。
+- 修复后台同步不及时：fetch-first 策略 + WidgetsBindingObserver 前台唤醒同步。
+- 修复错误页面被解析为作业：新增 invalid page/title 过滤器。
+- 日历页支持左右箭头切换月份，点击日期筛选当天作业。
+- Android versionName=1.0.9、versionCode=29。
 
 ## v1.0.8 更新
 
