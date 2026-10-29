@@ -60,14 +60,14 @@ class ChaoxingLocalClient {
       }),
     );
     _rememberCookies(response);
-    final body = response.data?.toString() ?? '';
-    final success = body.contains('"status":true') ||
-        body.contains('"result":true') ||
-        body.contains('true');
+    final status = response.statusCode ?? 0;
+    final success = status >= 200 &&
+        status < 300 &&
+        _isSuccessfulLoginPayload(response.data);
     if (!success) {
       return ChaoxingLoginResult(
         success: false,
-        message: _extractMessage(body) ?? '学习通登录失败，请检查账号和密码',
+        message: _extractMessage(response.data) ?? '学习通登录失败，请检查账号和密码',
       );
     }
     final sessionProfile = await _completeLoginSession(response.data);
@@ -145,7 +145,7 @@ class ChaoxingLocalClient {
       ),
       const _CourseWorkPage(
         courseName: '学习通课程',
-        sourcePrefix: 'default-app',
+        sourcePrefix: 'default',
         uri: 'https://mooc1.chaoxing.com/mooc2/work/list',
       ),
     ];
@@ -233,9 +233,33 @@ class ChaoxingLocalClient {
       ..sort((a, b) => a.deadlineAt.compareTo(b.deadlineAt));
   }
 
-  String? _extractMessage(String body) {
+  String? _extractMessage(dynamic payload) {
+    final decoded = _decodeJsonPayload(payload);
+    if (decoded is Map) {
+      final message = decoded['msg'] ?? decoded['message'];
+      if (message != null && message.toString().trim().isNotEmpty) {
+        return message.toString().trim();
+      }
+    }
+    final body = payload?.toString() ?? '';
     final match = RegExp(r'"(?:msg|message)"\s*:\s*"([^"]+)"').firstMatch(body);
     return match?.group(1);
+  }
+
+  bool _isSuccessfulLoginPayload(dynamic payload) {
+    final decoded = _decodeJsonPayload(payload);
+    if (decoded is! Map) {
+      return false;
+    }
+    return _isTrueValue(decoded['status']) || _isTrueValue(decoded['result']);
+  }
+
+  bool _isTrueValue(dynamic value) {
+    if (value == true || value == 1) {
+      return true;
+    }
+    final normalized = value?.toString().trim().toLowerCase();
+    return normalized == 'true' || normalized == '1';
   }
 
   Future<_ChaoxingProfile> _completeLoginSession(dynamic payload) async {

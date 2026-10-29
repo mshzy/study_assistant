@@ -50,6 +50,13 @@ void main() {
               'status': 1,
               'endTime': '2026-05-07 08:00:00',
             },
+            {
+              'id': 445,
+              'nameOne': '课程投票',
+              'activeType': 6,
+              'status': 1,
+              'endTime': '2026-05-07 08:00:00',
+            },
           ],
         },
       },
@@ -152,7 +159,7 @@ void main() {
     },
   );
 
-  test('marks numeric completed homework status as submitted', () {
+  test('does not treat numeric activity status as submission status', () {
     final assignments = ChaoxingApiParser.parseActivityAssignments(
       {
         'data': {
@@ -175,8 +182,8 @@ void main() {
       now: DateTime(2026, 5, 5, 8),
     );
 
-    expect(assignments.single.status, 'submitted');
-    expect(assignments.single.isCompleted, isTrue);
+    expect(assignments.single.status, 'pending');
+    expect(assignments.single.isCompleted, isFalse);
   });
 
   test('keeps peer review homework when description asks to complete review',

@@ -29,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
   _LoginPlatform _platform = _LoginPlatform.chaoxing;
   ShuniZuilingSchool? _selectedSchool;
   bool _accepted = true;
-  bool _loginRequested = false;
 
   @override
   void dispose() {
@@ -83,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.addPlatformMode
-                      ? '继续绑定另一个平台，作业会合并到同一个列表。'
+                      ? '添加或更新平台账号，作业会合并到同一个列表。'
                       : '添加学习通或数你最灵账号后，作业会合并提醒。',
                   style: Theme.of(
                     context,
@@ -266,34 +265,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    _loginRequested = true;
     if (_platform == _LoginPlatform.chaoxing) {
-      await widget.store.loginChaoxing(
+      final loginSucceeded = await widget.store.loginChaoxing(
         account: _chaoxingAccount.text,
         password: _chaoxingPassword.text,
         agreementAccepted: _accepted,
       );
-      _goHomeIfLoginSucceeded();
+      if (mounted && loginSucceeded) {
+        context.go('/assignments');
+      }
       return;
     }
     final selectedSchool = _selectedShuniSchool(_filteredShuniSchools);
     if (selectedSchool == null) {
       return;
     }
-    await widget.store.loginShuniZuiling(
+    final loginSucceeded = await widget.store.loginShuniZuiling(
       schoolUserLocalId: _shuniAccount.text,
       password: _shuniPassword.text,
       schoolCode: selectedSchool.code,
       agreementAccepted: _accepted,
     );
-    _goHomeIfLoginSucceeded();
-  }
-
-  void _goHomeIfLoginSucceeded() {
-    if (!mounted || !_loginRequested) {
-      return;
-    }
-    if (widget.store.isAuthenticated) {
+    if (mounted && loginSucceeded) {
       context.go('/assignments');
     }
   }

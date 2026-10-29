@@ -266,7 +266,7 @@ class ChaoxingApiParser {
         name.toLowerCase().contains('homework')) {
       return true;
     }
-    return const {'6', '42', '43', '44', '45', '46', '47'}.contains(type);
+    return const {'42', '43', '44', '45', '46', '47'}.contains(type);
   }
 
   static bool _isInvalidTitle(String title) {

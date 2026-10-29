@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app/app_version.dart';
+import '../app/app_platform_capabilities.dart';
 import '../services/app_update_service.dart';
 import '../services/assignment_store.dart';
 import '../services/external_link_service.dart';
@@ -27,7 +28,14 @@ class ProfileScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        final courses = _topCourses(store.assignments);
+        final courses = store.assignments
+            .map((assignment) => assignment.courseName.trim())
+            .where((name) => name.isNotEmpty)
+            .toSet()
+            .toList();
+        final supportsApkUpdates = AppPlatformCapabilities.supportsApkUpdates(
+          Theme.of(context).platform,
+        );
         return ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -42,14 +50,17 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    _CourseCard(courses: courses),
+                    _CourseCard(
+                      courses: courses.take(4).toList(),
+                      totalCourses: courses.length,
+                    ),
                     const SizedBox(height: 14),
                     _SettingsCard(
                       children: [
                         _SettingsTile(
                           icon: Icons.add_circle_outline,
                           title: '添加平台账号',
-                          subtitle: '继续绑定学习通或数你最灵账号',
+                          subtitle: '添加或更新学习通、数你最灵账号',
                           onTap: () => context.go('/login?addPlatform=1'),
                         ),
                         _SettingsTile(
@@ -81,12 +92,13 @@ class ProfileScreen extends StatelessWidget {
                           subtitle: 'HY · MIT License · v${AppVersion.display}',
                           onTap: () => _showAbout(context),
                         ),
-                        _SettingsTile(
-                          icon: Icons.system_update_alt,
-                          title: '检查更新',
-                          subtitle: '从 GitHub 自动检查最新 APK',
-                          onTap: () => _checkForUpdates(context),
-                        ),
+                        if (supportsApkUpdates)
+                          _SettingsTile(
+                            icon: Icons.system_update_alt,
+                            title: '检查更新',
+                            subtitle: '从 GitHub 自动检查最新 APK',
+                            onTap: () => _checkForUpdates(context),
+                          ),
                         _SettingsTile(
                           icon: Icons.code,
                           title: 'GitHub 源码',
@@ -124,23 +136,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  List<String> _topCourses(List<dynamic> assignments) {
-    final names = <String>[];
-    for (final assignment in assignments) {
-      final name = assignment.courseName.toString();
-      if (!names.contains(name)) {
-        names.add(name);
-      }
-      if (names.length == 4) {
-        break;
-      }
-    }
-    if (names.isEmpty) {
-      return const ['高等数学', '大学英语', '线性代数', '中国近现代史纲要'];
-    }
-    return names;
-  }
-
   Future<void> _openGithub(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final opened = await (externalLinkService ?? ExternalLinkService()).openUrl(
@@ -172,6 +167,11 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _checkForUpdates(BuildContext context) async {
+    if (!AppPlatformCapabilities.supportsApkUpdates(
+      Theme.of(context).platform,
+    )) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     messenger.showSnackBar(
@@ -406,14 +406,6 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: 18,
-            top: 48,
-            child: IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.settings_outlined, color: Colors.white),
-            ),
-          ),
-          Positioned(
             left: 24,
             right: 24,
             bottom: 54,
@@ -528,9 +520,10 @@ class _DefaultAvatar extends StatelessWidget {
 }
 
 class _CourseCard extends StatelessWidget {
-  const _CourseCard({required this.courses});
+  const _CourseCard({required this.courses, required this.totalCourses});
 
   final List<String> courses;
+  final int totalCourses;
 
   @override
   Widget build(BuildContext context) {
@@ -562,7 +555,7 @@ class _CourseCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '共 ${courses.length} 门课程',
+                  '共 $totalCourses 门课程',
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -571,18 +564,21 @@ class _CourseCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                for (var i = 0; i < courses.length; i += 1)
-                  Expanded(
-                    child: _CourseShortcut(
-                      title: courses[i],
-                      icon: icons[i % icons.length],
-                      color: colors[i % colors.length],
+            if (courses.isEmpty)
+              const Text('暂无课程，刷新作业后查看')
+            else
+              Row(
+                children: [
+                  for (var i = 0; i < courses.length; i += 1)
+                    Expanded(
+                      child: _CourseShortcut(
+                        title: courses[i],
+                        icon: icons[i % icons.length],
+                        color: colors[i % colors.length],
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),

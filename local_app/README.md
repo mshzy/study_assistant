@@ -2,7 +2,7 @@
 
 这是当前 GitHub 仓库实际开源的版本，位于 `local_app`。它是一个本地优先的 Flutter App，不依赖自建后端。
 
-当前版本：1.0.5
+当前源码版本：1.0.9（构建号 29，以 `pubspec.yaml` 为准）
 
 ## 功能
 
@@ -29,7 +29,7 @@
 
 | 作业列表 | 桌面小组件 |
 | --- | --- |
-| ![作业列表](../docs/images/app-homework-list.jpg) | ![桌面小组件](../docs/images/home-widget.jpg) |
+| ![作业列表](docs/images/app-homework-list.jpg) | ![桌面小组件](docs/images/home-widget.jpg) |
 
 ## 隐私与边界
 
@@ -87,7 +87,7 @@
 ## 开发运行
 
 ```powershell
-cd D:\code\study_assistant\local_app
+cd local_app
 flutter pub get
 flutter test
 flutter analyze
@@ -97,7 +97,7 @@ flutter run
 ## 构建 APK
 
 ```powershell
-cd D:\code\study_assistant\local_app
+cd local_app
 flutter build apk --release
 ```
 

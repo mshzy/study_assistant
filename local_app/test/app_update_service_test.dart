@@ -83,6 +83,34 @@ void main() {
     expect(update, isNull);
   });
 
+  test('reports GitHub API failures instead of treating them as up to date',
+      () async {
+    final dio = Dio(
+      BaseOptions(validateStatus: (status) => status != null && status < 500),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 403,
+                data: {'message': 'rate limit exceeded'},
+              ),
+            );
+          },
+        ),
+      );
+    final service = AppUpdateService(dio: dio);
+
+    expect(
+      () => service.checkForUpdate(
+        currentVersionName: '1.0.6',
+        currentVersionCode: 17,
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('compares semantic versions numerically', () {
     expect(AppUpdateService.isRemoteVersionNewer('1.0.10', '1.0.6'), isTrue);
     expect(AppUpdateService.isRemoteVersionNewer('1.0.6', '1.0.10'), isFalse);
@@ -93,22 +121,27 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('study-update-test-');
     addTearDown(() => tempDir.delete(recursive: true));
     final progressEvents = <List<int>>[];
-    final dio = Dio(
-      BaseOptions(validateStatus: (status) => status != null && status < 500),
-    )..interceptors.add(
+    final downloadDio = Dio()
+      ..interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
             handler.resolve(
-              Response<List<int>>(
+              Response<ResponseBody>(
                 requestOptions: options,
                 statusCode: 200,
-                data: [1, 2, 3, 4],
+                data: ResponseBody.fromBytes(
+                  [1, 2, 3, 4],
+                  200,
+                  headers: {
+                    Headers.contentLengthHeader: ['4'],
+                  },
+                ),
               ),
             );
           },
         ),
       );
-    final service = AppUpdateService(dio: dio);
+    final service = AppUpdateService(downloadDio: downloadDio);
 
     final downloaded = await service.downloadApk(
       const AppUpdateInfo(

@@ -30,8 +30,8 @@ class ChaoxingAssignmentParser {
         ])?.trim() ??
         fallbackCourseName;
 
-    final itemRegex = RegExp(
-      r'<(?:div|li)[^>]*(?:class=["'
+    final itemStartRegex = RegExp(
+      r'<(div|li)\b[^>]*(?:class=["'
       '][^"'
       ']*(?:work|homework|task|作业)[^"'
       ']*["'
@@ -42,12 +42,11 @@ class ChaoxingAssignmentParser {
       '][^"'
       ']*(?:doHomeWork|taskrefId|workId|/work/)[^"'
       ']*["'
-      '])[^>]*>.*?</(?:div|li)>',
+      '])[^>]*>',
       caseSensitive: false,
       dotAll: true,
     );
-    final blocks =
-        itemRegex.allMatches(html).map((match) => match.group(0)!).toList();
+    final blocks = _extractBalancedBlocks(html, itemStartRegex);
     final candidates = blocks.isEmpty ? <String>[html] : blocks;
 
     final seen = <String>{};
@@ -142,14 +141,16 @@ class ChaoxingAssignmentParser {
   static _ParsedDeadline? _extractDeadline(String cleanText, DateTime now) {
     final absolute = _firstMatch(cleanText, [
       RegExp(r'(20\d{2}[-/年]\d{1,2}[-/月]\d{1,2}日?\s+\d{1,2}:\d{2}(?::\d{2})?)'),
-      RegExp(r'(截止时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
-      RegExp(r'(结束时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
+      RegExp(
+          r'(截止时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
+      RegExp(
+          r'(结束时间[:：]\s*(?:20\d{2}[-/年])?\d{1,2}[-/月]\d{1,2}日?\s*\d{1,2}:\d{2})'),
       RegExp(r'(20\d{2}[-/]\d{1,2}[-/]\d{1,2})'),
     ]);
     if (absolute != null) {
       return _ParsedDeadline(
         rawText: absolute,
-        value: _parseChinaTime(absolute),
+        value: _parseChinaTime(absolute, now),
       );
     }
 
@@ -302,11 +303,11 @@ class ChaoxingAssignmentParser {
 
   static bool _hasRealAssignmentContent(String cleanText) {
     return cleanText.contains('作业') ||
-           cleanText.contains('任务') ||
-           cleanText.contains('考试') ||
-           cleanText.contains('截止') ||
-           cleanText.contains('提交') ||
-           cleanText.contains('待完成');
+        cleanText.contains('任务') ||
+        cleanText.contains('考试') ||
+        cleanText.contains('截止') ||
+        cleanText.contains('提交') ||
+        cleanText.contains('待完成');
   }
 
   static bool _isCompletedPeerReview(String text) {
@@ -334,7 +335,7 @@ class ChaoxingAssignmentParser {
     return _decodeEntities(_stripTags(desc ?? cleanText)).trim();
   }
 
-  static DateTime _parseChinaTime(String raw) {
+  static DateTime _parseChinaTime(String raw, DateTime now) {
     final normalized = raw
         .replaceAll('年', '-')
         .replaceAll('月', '-')
@@ -342,19 +343,30 @@ class ChaoxingAssignmentParser {
         .replaceAll('/', '-')
         .trim();
     final parts = RegExp(
-      r'(20\d{2})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?',
+      r'(?:(20\d{2})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?',
     ).firstMatch(normalized);
     if (parts == null) {
       throw FormatException('Unsupported deadline format: $raw');
     }
-    return DateTime(
-      int.parse(parts.group(1)!),
-      int.parse(parts.group(2)!),
-      int.parse(parts.group(3)!),
-      int.parse(parts.group(4)!),
-      int.parse(parts.group(5)!),
-      int.parse(parts.group(6) ?? '0'),
+    final hasExplicitYear = parts.group(1) != null;
+    final month = int.parse(parts.group(2)!);
+    final day = int.parse(parts.group(3)!);
+    final hour = int.parse(parts.group(4) ?? '0');
+    final minute = int.parse(parts.group(5) ?? '0');
+    final second = int.parse(parts.group(6) ?? '0');
+    var parsed = DateTime(
+      int.parse(parts.group(1) ?? '${now.year}'),
+      month,
+      day,
+      hour,
+      minute,
+      second,
     );
+    if (!hasExplicitYear &&
+        parsed.isBefore(now.subtract(const Duration(days: 180)))) {
+      parsed = DateTime(now.year + 1, month, day, hour, minute, second);
+    }
+    return parsed;
   }
 
   static int? _firstInt(String text, RegExp pattern) {
@@ -386,6 +398,39 @@ class ChaoxingAssignmentParser {
       }
     }
     return null;
+  }
+
+  static List<String> _extractBalancedBlocks(String html, RegExp startPattern) {
+    final blocks = <String>[];
+    var coveredUntil = -1;
+    for (final start in startPattern.allMatches(html)) {
+      if (start.start < coveredUntil) {
+        continue;
+      }
+      final tag = start.group(1);
+      if (tag == null) {
+        continue;
+      }
+      final tagPattern = RegExp(
+        '</?${RegExp.escape(tag)}\\b[^>]*>',
+        caseSensitive: false,
+      );
+      var depth = 0;
+      for (final tagMatch in tagPattern.allMatches(html, start.start)) {
+        final token = tagMatch.group(0)!;
+        if (token.startsWith('</')) {
+          depth -= 1;
+          if (depth == 0) {
+            coveredUntil = tagMatch.end;
+            blocks.add(html.substring(start.start, coveredUntil));
+            break;
+          }
+        } else if (!token.endsWith('/>')) {
+          depth += 1;
+        }
+      }
+    }
+    return blocks;
   }
 
   static String _stripTags(String value) =>

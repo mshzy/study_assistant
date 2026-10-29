@@ -66,9 +66,61 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('统计页'), findsOneWidget);
   });
+
+  testWidgets('app shell does not own app-resume auto sync', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = _CountingAssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    final router = GoRouter(
+      initialLocation: '/assignments',
+      routes: [
+        ShellRoute(
+          builder: (_, __, child) => AppShell(
+            assignmentStore: store,
+            child: child,
+          ),
+          routes: [
+            GoRoute(
+              path: '/assignments',
+              builder: (_, __) => const Text('作业页'),
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    tester.binding.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+    await tester.pump();
+
+    expect(store.runDueAutoSyncCalls, 0);
+  });
 }
 
 class _MemorySessionStore extends SecureSessionStore {}
+
+class _CountingAssignmentStore extends AssignmentStore {
+  _CountingAssignmentStore({
+    required super.sessionStore,
+    required super.notificationService,
+    required super.widgetSnapshotService,
+  });
+
+  int runDueAutoSyncCalls = 0;
+
+  @override
+  Future<bool> runDueAutoSync({DateTime? now}) async {
+    runDueAutoSyncCalls += 1;
+    return false;
+  }
+}
 
 class _NoopNotificationService extends LocalNotificationService {
   @override

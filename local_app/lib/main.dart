@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'src/app/app_deep_links.dart';
+import 'src/app/app_platform_capabilities.dart';
 import 'src/app/app_shell.dart';
+import 'src/app/app_update_download_dialog.dart';
 import 'src/features/assignment_detail_screen.dart';
 import 'src/features/assignment_list_screen.dart';
 import 'src/features/calendar_screen.dart';
@@ -38,7 +43,15 @@ Future<void> main() async {
   );
 
   await notificationService.initializeSafely();
-  await assignmentStore.restoreSession();
+  try {
+    await assignmentStore.restoreSession();
+  } catch (error, stack) {
+    // A restored secure-storage key can be invalid after device migration.
+    // Start with a clean unauthenticated state instead of leaving the app on
+    // the splash screen.
+    debugPrint('[SessionRestore] failed: $error');
+    debugPrint('$stack');
+  }
 
   runApp(StudyAssistantApp(
     assignmentStore: assignmentStore,
@@ -51,10 +64,12 @@ class StudyAssistantApp extends StatefulWidget {
     super.key,
     required this.assignmentStore,
     required this.notificationService,
+    this.updateService,
   });
 
   final AssignmentStore assignmentStore;
   final LocalNotificationService notificationService;
+  final AppUpdateService? updateService;
 
   @override
   State<StudyAssistantApp> createState() => _StudyAssistantAppState();
@@ -72,15 +87,20 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     WidgetsBinding.instance.addObserver(this);
     _router = _buildRouter();
     widget.notificationService.setPayloadHandler(_handleNotificationPayload);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdateOnStartup());
+    if (AppPlatformCapabilities.supportsApkUpdates(defaultTargetPlatform)) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _checkUpdateOnStartup());
+    }
   }
 
   Future<void> _checkUpdateOnStartup() async {
-    debugPrint('[UpdateCheck] _checkUpdateOnStartup START, version=${AppVersion.name}');
+    debugPrint(
+        '[UpdateCheck] _checkUpdateOnStartup START, version=${AppVersion.name}');
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
         debugPrint('[UpdateCheck] Attempt $attempt...');
-        final update = await AppUpdateService().checkForUpdate(
+        final update =
+            await (widget.updateService ?? AppUpdateService()).checkForUpdate(
           currentVersionName: AppVersion.name,
           currentVersionCode: AppVersion.code,
         );
@@ -109,7 +129,8 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
       context: navigatorContext,
       builder: (ctx) => AlertDialog(
         title: const Text('发现新版本'),
-        content: Text('v${update.versionName} 已发布，是否更新？\n\n${update.releaseNotes}'),
+        content:
+            Text('v${update.versionName} 已发布，是否更新？\n\n${update.releaseNotes}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -131,99 +152,41 @@ class _StudyAssistantAppState extends State<StudyAssistantApp>
     final navigatorContext = _navigatorKey.currentContext;
     if (navigatorContext == null) return;
 
-    showDialog<void>(
+    final file = await showDialog<File>(
       context: navigatorContext,
       barrierDismissible: false,
-      builder: (dialogCtx) {
-        var started = false;
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            var received = 0;
-            var total = 0;
-            var done = false;
-            var error = false;
-
-            if (!started) {
-              started = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _doDownload(
-                  update: update,
-                  onProgress: (r, t) {
-                    if (ctx.mounted) {
-                      setDialogState(() { received = r; total = t; });
-                    }
-                  },
-                  onDone: () {
-                    if (ctx.mounted) {
-                      setDialogState(() => done = true);
-                      try { Navigator.of(ctx).pop(); } catch (_) {}
-                    }
-                  },
-                  onError: () {
-                    if (ctx.mounted) {
-                      setDialogState(() => error = true);
-                    }
-                  },
-                );
-              });
-            }
-
-            return AlertDialog(
-              title: Text(error ? '\u4e0b\u8f7d\u5931\u8d25' : (done ? '\u4e0b\u8f7d\u5b8c\u6210' : '\u6b63\u5728\u4e0b\u8f7d\u66f4\u65b0\u5305...')),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!error && !done) ...[
-                    LinearProgressIndicator(
-                      value: total > 0 ? received / total : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      total > 0
-                          ? '${(received * 100 / total).toStringAsFixed(0)}%'
-                          : '\u8fde\u63a5\u4e2d...',
-                      style: Theme.of(ctx).textTheme.bodySmall,
-                    ),
-                  ],
-                  if (error) const Text('\u4e0b\u8f7d\u66f4\u65b0\u5305\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5'),
-                ],
-              ),
-              actions: error
-                  ? [
-                      TextButton(
-                        onPressed: () { try { Navigator.of(ctx).pop(); } catch (_) {} },
-                        child: const Text('\u5173\u95ed'),
-                      ),
-                    ]
-                  : null,
-            );
-          },
-        );
-      },
+      builder: (_) => AppUpdateDownloadDialog(
+        download: (onProgress) =>
+            (widget.updateService ?? AppUpdateService()).downloadApk(
+          update,
+          onProgress: onProgress,
+        ),
+      ),
     );
-  }
-
-  Future<void> _doDownload({
-    required AppUpdateInfo update,
-    required void Function(int, int) onProgress,
-    required void Function() onDone,
-    required void Function() onError,
-  }) async {
+    if (file == null || !mounted) {
+      return;
+    }
     try {
-      final file = await AppUpdateService().downloadApk(update, onProgress: onProgress);
-      onDone();
       final success = await ExternalLinkService().installApk(file.path);
       final mc = _navigatorKey.currentContext;
       if (!success && mc != null && mc.mounted) {
         ScaffoldMessenger.of(mc).showSnackBar(
-          const SnackBar(content: Text('\u65e0\u6cd5\u6253\u5f00\u7cfb\u7edf\u5b89\u88c5\u5668')),
+          const SnackBar(
+              content: Text(
+                  '\u65e0\u6cd5\u6253\u5f00\u7cfb\u7edf\u5b89\u88c5\u5668')),
         );
       }
     } catch (_) {
-      onError();
+      final mc = _navigatorKey.currentContext;
+      if (mc != null && mc.mounted) {
+        ScaffoldMessenger.of(mc).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  '\u65e0\u6cd5\u6253\u5f00\u7cfb\u7edf\u5b89\u88c5\u5668')),
+        );
+      }
     }
   }
-
 
   @override
   void dispose() {

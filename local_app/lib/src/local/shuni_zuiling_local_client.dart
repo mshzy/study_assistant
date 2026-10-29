@@ -103,7 +103,16 @@ class ShuniZuilingLocalClient {
     if (status < 200 || status >= 400) {
       throw StateError(_readMessage(response.data) ?? '数你最灵作业同步失败');
     }
-    return _dedupe(ShuniZuilingAssignmentParser.parseJson(response.data));
+    final businessError = _readBusinessError(response.data);
+    if (businessError != null) {
+      throw StateError(businessError);
+    }
+    return _dedupe(
+      ShuniZuilingAssignmentParser.parseJson(
+        response.data,
+        baseUri: response.requestOptions.uri.resolve('/'),
+      ),
+    );
   }
 
   Future<List<ShuniZuilingSchool>> fetchSchools() async {
@@ -178,6 +187,21 @@ class ShuniZuilingLocalClient {
       return null;
     }
     return (map['msg'] ?? map['message'] ?? map['error'])?.toString();
+  }
+
+  String? _readBusinessError(dynamic data) {
+    final map = _asMap(data);
+    if (map == null) {
+      return null;
+    }
+    final code = int.tryParse(map['code']?.toString() ?? '');
+    if (code != null && code != 0 && code != 200) {
+      return _readMessage(data) ?? '数你最灵作业同步失败';
+    }
+    if (map['success'] == false || map['result'] == false) {
+      return _readMessage(data) ?? '数你最灵作业同步失败';
+    }
+    return null;
   }
 
   List<ShuniZuilingSchool> _parseSchools(dynamic data) {

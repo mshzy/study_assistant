@@ -15,16 +15,24 @@ class LocalAssignmentRepository {
     if (raw == null || raw.isEmpty) {
       return [];
     }
-    final data = jsonDecode(raw) as List<dynamic>;
-    final assignments = data
-        .map((item) => Assignment.fromJson(item as Map<String, dynamic>))
-        .toList();
+    late final List<Assignment> assignments;
+    try {
+      final data = jsonDecode(raw) as List<dynamic>;
+      assignments = data
+          .map((item) => Assignment.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      await prefs.remove(_assignmentsKey);
+      await prefs.remove(_lastSyncKey);
+      return [];
+    }
     await _migrateCompletedAssignments(prefs, assignments);
     final hiddenCompletedIds = _loadCompletedIds(prefs);
     return assignments
         .where(
           (assignment) =>
-              !hiddenCompletedIds.contains(assignment.id) &&
+              (!hiddenCompletedIds.contains(assignment.id) ||
+                  assignment.isCompleted) &&
               !_isCompletedPeerReview(assignment),
         )
         .toList();
@@ -110,12 +118,14 @@ class LocalAssignmentRepository {
       }
     }
     for (final assignment in incoming) {
-      if (effectiveHiddenCompletedIds.contains(assignment.id) ||
-          _isCompletedPeerReview(assignment)) {
+      if (_isCompletedPeerReview(assignment)) {
         continue;
       }
       if (assignment.isCompleted) {
         byId[assignment.id] = assignment;
+        continue;
+      }
+      if (effectiveHiddenCompletedIds.contains(assignment.id)) {
         continue;
       }
       final existingCompleted = existing

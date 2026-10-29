@@ -36,6 +36,34 @@ void main() {
       expect(restored.reminderOffsetsMinutes, [1440, 30, 5]);
     },
   );
+
+  test('saveReminderRule persists an empty list to disable reminders',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final notificationService = _RecordingNotificationService();
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(account: 'student'),
+      notificationService: notificationService,
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    store.replaceAssignmentsForTest([_assignment(id: 'work-1')]);
+
+    await store.saveReminderRule([]);
+
+    expect(store.reminderOffsetsMinutes, isEmpty);
+    expect(notificationService.lastOffsets, isEmpty);
+
+    final restored = AssignmentStore(
+      sessionStore: _MemorySessionStore(account: 'student'),
+      notificationService: _RecordingNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(restored.dispose);
+    await restored.restoreSession();
+
+    expect(restored.reminderOffsetsMinutes, isEmpty);
+  });
 }
 
 Assignment _assignment({required String id}) {

@@ -31,9 +31,7 @@ class ReminderRuleStore {
   }
 
   static List<int> normalizeOffsets(List<int>? offsetsMinutes) {
-    final values = (offsetsMinutes == null || offsetsMinutes.isEmpty
-            ? defaultOffsetsMinutes
-            : offsetsMinutes)
+    final values = (offsetsMinutes ?? defaultOffsetsMinutes)
         .where((item) => item > 0)
         .toSet()
         .toList()

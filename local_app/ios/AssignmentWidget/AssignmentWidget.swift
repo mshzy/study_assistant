@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import Foundation
 
 private let appGroupId = "group.com.example.studyassistant"
 private let snapshotKey = "assignment_snapshot"
@@ -19,6 +20,30 @@ struct AssignmentSnapshotItem: Codable, Identifiable {
     let deepLinkUrl: String
 
     var id: String { assignmentId }
+
+    var deadlineDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: deadlineAt) ?? ISO8601DateFormatter().date(from: deadlineAt)
+    }
+
+    var remainingTextNow: String {
+        guard let deadlineDate else { return remainingText }
+        let minutes = Int(deadlineDate.timeIntervalSinceNow / 60)
+        if minutes <= 0 { return "已截止" }
+        if minutes < 60 { return "\(minutes)分钟" }
+        let hours = Int(ceil(Double(minutes) / 60))
+        if hours < 24 { return "\(hours)小时" }
+        return "\(Int(ceil(Double(hours) / 24)))天"
+    }
+
+    var urgencyLevelNow: String {
+        guard let deadlineDate else { return urgencyLevel }
+        let hours = Int(deadlineDate.timeIntervalSinceNow / 3600)
+        if hours <= 3 { return "critical" }
+        if hours <= 24 { return "soon" }
+        return "normal"
+    }
 }
 
 struct AssignmentProvider: TimelineProvider {
@@ -87,7 +112,7 @@ struct AssignmentWidgetView: View {
                     Link(destination: URL(string: item.deepLinkUrl)!) {
                         HStack(alignment: .top, spacing: 8) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(color(for: item.urgencyLevel))
+                                .fill(color(for: item.urgencyLevelNow))
                                 .frame(width: 4)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title)
@@ -99,7 +124,7 @@ struct AssignmentWidgetView: View {
                                     .lineLimit(1)
                             }
                             Spacer(minLength: 4)
-                            Text(item.remainingText)
+                            Text(item.remainingTextNow)
                                 .font(.caption2.monospacedDigit().weight(.semibold))
                         }
                     }

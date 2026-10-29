@@ -78,4 +78,12 @@ void main() {
     expect(paths, contains('cache-path'));
     expect(paths, contains('updates'));
   });
+
+  test('Android backup is disabled for encrypted local credentials', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android:allowBackup="false"'));
+  });
 }

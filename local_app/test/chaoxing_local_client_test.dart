@@ -3,6 +3,101 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:study_assistant_mobile/src/local/chaoxing_local_client.dart';
 
 void main() {
+  test('login does not treat unrelated true fields as success', () async {
+    final dio = Dio(
+      BaseOptions(
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'status': false,
+                  'needValidate': true,
+                  'msg': '请输入验证码',
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+    final result = await ChaoxingLocalClient(dio: dio).login(
+      account: 'student',
+      password: 'password',
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, '请输入验证码');
+  });
+
+  test('login rejects a non-success HTTP response', () async {
+    final dio = Dio(
+      BaseOptions(
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 401,
+                data: '{"status":true,"msg":"登录已失效"}',
+              ),
+            );
+          },
+        ),
+      );
+
+    final result = await ChaoxingLocalClient(dio: dio).login(
+      account: 'student',
+      password: 'password',
+    );
+
+    expect(result.success, isFalse);
+    expect(result.message, '登录已失效');
+  });
+
+  test('deduplicates the same work returned by both work endpoints', () async {
+    const html = '''
+      <ul class="nav">
+        <li data="https://mooc1-api.chaoxing.com/work/doHomeWorkNew?courseId=111&amp;clazzId=222&amp;taskrefId=333">
+          <p>章节作业</p>
+          <span class="status">未提交</span>
+          <span>大学英语</span>
+          <span>截止时间：2026-08-20 18:00</span>
+        </li>
+      </ul>
+    ''';
+    final dio = Dio(
+      BaseOptions(
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: html,
+              ),
+            );
+          },
+        ),
+      );
+
+    final assignments = await ChaoxingLocalClient(dio: dio).fetchAssignments();
+
+    expect(assignments, hasLength(1));
+    expect(assignments.single.title, '章节作业');
+  });
+
   test(
       'login follows Chaoxing redirect before resolving profile name and avatar',
       () async {

@@ -74,6 +74,69 @@ void main() {
           'snzl:987',
         ]));
   });
+
+  test('successful empty sync clears stale pending assignments', () async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = LocalAssignmentRepository();
+    await repository.mergeAndSave([
+      _assignment(id: 'cx:activity:old', title: '旧学习通作业'),
+    ]);
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(
+        account: 'student',
+        password: 'password',
+      ),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      repository: repository,
+      chaoxingClient: _FakeChaoxingClient(const []),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+
+    await store.syncAssignments();
+
+    expect(store.error, isNull);
+    expect(store.assignments, isEmpty);
+    expect(await repository.loadAssignments(), isEmpty);
+  });
+
+  test(
+    'partial sync clears stale pending assignments from successful empty source',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = LocalAssignmentRepository();
+      await repository.mergeAndSave([
+        _assignment(id: 'cx:activity:old', title: '旧学习通作业'),
+        _assignment(id: 'snzl:old', title: '旧数你最灵作业'),
+      ]);
+      final store = AssignmentStore(
+        sessionStore: _MemorySessionStore(
+          account: 'student',
+          password: 'password',
+          shuniAccount: '20260001',
+          shuniPassword: 'password',
+          shuniSchoolCode: 'school',
+        ),
+        notificationService: _NoopNotificationService(),
+        widgetSnapshotService: _NoopWidgetSnapshotService(),
+        repository: repository,
+        chaoxingClient: _FakeChaoxingClient(const []),
+        shuniZuilingClient: _FailingFetchShuniZuilingClient(),
+      );
+      addTearDown(store.dispose);
+      await store.restoreSession();
+
+      await store.syncAssignments();
+
+      expect(store.error, contains('部分平台同步失败'));
+      expect(store.assignments.map((item) => item.id), ['snzl:old']);
+      expect(
+        (await repository.loadAssignments()).map((item) => item.id),
+        ['snzl:old'],
+      );
+    },
+  );
 }
 
 Assignment _assignment({required String id, required String title}) {
@@ -140,6 +203,25 @@ class _FakeShuniZuilingClient extends ShuniZuilingLocalClient {
     List<int> courseIds = const [],
   }) async =>
       assignments;
+}
+
+class _FailingFetchShuniZuilingClient extends ShuniZuilingLocalClient {
+  @override
+  Future<ShuniZuilingLoginResult> login({
+    required String schoolUserLocalId,
+    required String password,
+    required String schoolCode,
+  }) async {
+    return const ShuniZuilingLoginResult(success: true, token: 'token');
+  }
+
+  @override
+  Future<List<Assignment>> fetchAssignments({
+    required String studentId,
+    List<int> courseIds = const [],
+  }) async {
+    throw StateError('数你最灵临时失败');
+  }
 }
 
 class _MemorySessionStore extends SecureSessionStore {

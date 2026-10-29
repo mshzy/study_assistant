@@ -2,6 +2,7 @@ node_modules/
 dist/
 server_version/
 apps/
+releases/
 .env
 .env.local
 .gradle/

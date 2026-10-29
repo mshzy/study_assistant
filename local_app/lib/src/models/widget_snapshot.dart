@@ -33,7 +33,8 @@ class WidgetSnapshotItem {
         'assignmentId': assignmentId,
         'title': title,
         'courseName': courseName,
-        'deadlineAt': deadlineAt.toIso8601String(),
+        // Native widgets parse this value independently of the device timezone.
+        'deadlineAt': deadlineAt.toUtc().toIso8601String(),
         'remainingText': remainingText,
         'urgencyLevel': urgencyLevel,
         'deepLinkUrl': deepLinkUrl,

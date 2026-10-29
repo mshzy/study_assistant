@@ -94,10 +94,52 @@ void main() {
     );
   });
 
+  test('throws when the homework API returns a business error envelope',
+      () async {
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'https://smartestu.cn',
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    )..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: options.path.endsWith('/api/auth/login')
+                    ? {'token': 'smart-token'}
+                    : {'code': 401, 'msg': '登录已失效', 'data': null},
+              ),
+            );
+          },
+        ),
+      );
+    final client = ShuniZuilingLocalClient(dio: dio);
+    await client.login(
+      schoolUserLocalId: '20260001',
+      password: 'password',
+      schoolCode: 'school',
+    );
+
+    expect(
+      () => client.fetchAssignments(studentId: 'school-20260001'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          '登录已失效',
+        ),
+      ),
+    );
+  });
+
   test('logs in and fetches homework from smartestu API', () async {
     final requests = <_RecordedRequest>[];
     final dio = Dio(
       BaseOptions(
+        baseUrl: 'https://smartestu.cn',
         validateStatus: (status) => status != null && status < 500,
       ),
     )..interceptors.add(
@@ -138,6 +180,7 @@ void main() {
                             'name': '第 6 次作业',
                             'endTime': '2026-06-01T15:59:10.900Z',
                             'submission_status': 'not_submitted',
+                            'detailUrl': 'student/homework/24738',
                           },
                         ],
                       },
@@ -163,6 +206,10 @@ void main() {
 
     expect(login.success, isTrue);
     expect(assignments.single.id, 'snzl:24738');
+    expect(
+      assignments.single.submitUrl,
+      'https://smartestu.cn/student/homework/24738',
+    );
     expect(requests.first.path, '/api/auth/login');
     expect(requests.first.data, {
       'schoolUserLocalId': '20260001',

@@ -2,6 +2,82 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:study_assistant_mobile/src/local/chaoxing_assignment_parser.dart';
 
 void main() {
+  test('parses a date-only Chaoxing deadline without throwing', () {
+    const html = '''
+      <div class="work-item" data-id="date-only">
+        <a href="/work/date-only">日期作业</a>
+        <span>截止时间：2026-05-08</span>
+      </div>
+    ''';
+
+    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+      html,
+      fallbackCourseName: '软件工程',
+      sourcePrefix: 'course-1',
+      baseUri: Uri.parse('https://mooc1-api.chaoxing.com'),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.deadlineAt, DateTime(2026, 5, 8));
+  });
+
+  test('uses the current year for a Chaoxing deadline without a year', () {
+    const html = '''
+      <div class="work-item" data-id="month-day">
+        <a href="/work/month-day">无年份作业</a>
+        <span>截止时间：05-08 18:00</span>
+      </div>
+    ''';
+
+    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+      html,
+      fallbackCourseName: '软件工程',
+      sourcePrefix: 'course-1',
+      baseUri: Uri.parse('https://mooc1-api.chaoxing.com'),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.deadlineAt, DateTime(2026, 5, 8, 18));
+  });
+
+  test('rolls a clearly future year boundary deadline into next year', () {
+    const html = '''
+      <div class="work-item" data-id="next-year">
+        <a href="/work/next-year">跨年作业</a>
+        <span>截止时间：01-02 18:00</span>
+      </div>
+    ''';
+
+    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+      html,
+      fallbackCourseName: '软件工程',
+      sourcePrefix: 'course-1',
+      baseUri: Uri.parse('https://mooc1-api.chaoxing.com'),
+      now: DateTime(2026, 12, 20, 8),
+    );
+
+    expect(assignments.single.deadlineAt, DateTime(2027, 1, 2, 18));
+  });
+
+  test('keeps nested div content inside a Chaoxing work card', () {
+    const html = '''
+      <div class="work-item" data-id="nested-work">
+        <div class="work-title"><a href="/work/nested">嵌套作业</a></div>
+        <div class="work-meta"><span>截止时间：2026-05-10 20:30</span></div>
+      </div>
+    ''';
+
+    final assignments = ChaoxingAssignmentParser.parseWorkHtml(
+      html,
+      fallbackCourseName: '软件工程',
+      sourcePrefix: 'course-1',
+      baseUri: Uri.parse('https://mooc1-api.chaoxing.com'),
+      now: DateTime(2026, 5, 5, 8),
+    );
+
+    expect(assignments.single.deadlineAt, DateTime(2026, 5, 10, 20, 30));
+  });
+
   test('parses Chaoxing work HTML into local assignments', () {
     const html = '''
       <div class="course-name">软件工程</div>

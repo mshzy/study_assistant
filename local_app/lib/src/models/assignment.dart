@@ -90,9 +90,6 @@ class Assignment {
         .hasMatch(text)) {
       return 'pending';
     }
-    if (RegExp(r'(^|\s)(2|3|4)(\s|$)').hasMatch(text)) {
-      return 'submitted';
-    }
     // 待批阅、已提交、已完成 → completed
     if (RegExp(
             r'(待批阅|已提交|已完成|待批改|已批阅|已批改|已评价|通过|submitted|graded|reviewed|done|complete)')

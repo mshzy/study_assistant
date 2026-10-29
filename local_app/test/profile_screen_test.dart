@@ -14,6 +14,51 @@ import 'package:study_assistant_mobile/src/services/secure_session_store.dart';
 import 'package:study_assistant_mobile/src/services/widget_snapshot_service.dart';
 
 void main() {
+  testWidgets('profile shows no sample courses before sync', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(MaterialApp(home: ProfileScreen(store: store)));
+
+    expect(find.text('共 0 门课程'), findsOneWidget);
+    expect(find.text('暂无课程，刷新作业后查看'), findsOneWidget);
+    expect(find.text('高等数学'), findsNothing);
+  });
+
+  testWidgets('profile counts all courses while showing four shortcuts',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+    store.replaceAssignmentsForTest([
+      for (var index = 0; index < 5; index++)
+        Assignment(
+          id: 'course-$index',
+          courseName: '课程$index',
+          title: '作业$index',
+          deadlineAt: DateTime(2026, 12, 1),
+          requirementsText: '',
+          status: 'pending',
+          lastSyncedAt: DateTime(2026, 10, 28),
+        ),
+    ]);
+
+    await tester.pumpWidget(MaterialApp(home: ProfileScreen(store: store)));
+
+    expect(find.text('共 5 门课程'), findsOneWidget);
+    expect(find.text('课程3'), findsOneWidget);
+    expect(find.text('课程4'), findsNothing);
+  });
+
   testWidgets('profile exposes add platform account entry', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final store = AssignmentStore(
@@ -129,6 +174,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
         home: Scaffold(
           body: ProfileScreen(
             store: store,
@@ -172,6 +218,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
         home: Scaffold(
           body: ProfileScreen(
             store: store,
@@ -223,6 +270,26 @@ void main() {
     expect(find.text('数据备份'), findsOneWidget);
     expect(find.text('帮助与反馈'), findsOneWidget);
     expect(find.text('关于我们'), findsOneWidget);
+  });
+
+  testWidgets('profile hides APK updates on iOS', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AssignmentStore(
+      sessionStore: _MemorySessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+    );
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: Scaffold(body: ProfileScreen(store: store)),
+      ),
+    );
+
+    expect(find.text('检查更新'), findsNothing);
+    expect(find.textContaining('APK'), findsNothing);
   });
 }
 

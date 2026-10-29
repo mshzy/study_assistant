@@ -23,7 +23,7 @@ class AppUpdateInfo {
 }
 
 class AppUpdateService {
-  AppUpdateService({Dio? dio})
+  AppUpdateService({Dio? dio, Dio? downloadDio})
       : _dio = dio ??
             Dio(
               BaseOptions(
@@ -36,27 +36,36 @@ class AppUpdateService {
                   'User-Agent': 'StudyAssistant/1.0',
                 },
               ),
+            ),
+        _downloadDio = downloadDio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 10),
+                receiveTimeout: const Duration(minutes: 5),
+                headers: const {'User-Agent': 'StudyAssistant/1.0'},
+              ),
             );
 
   static const owner = 'mshzy';
   static const repo = 'study_assistant';
 
   final Dio _dio;
+  final Dio _downloadDio;
 
   Future<AppUpdateInfo?> checkForUpdate({
     required String currentVersionName,
     required int currentVersionCode,
   }) async {
     try {
-      debugPrint('[UpdateCheck] checkForUpdate called, current=$currentVersionName');
+      debugPrint(
+          '[UpdateCheck] checkForUpdate called, current=$currentVersionName');
       final response = await _dio.get<dynamic>(
         '/repos/$owner/$repo/releases/latest',
       );
       final status = response.statusCode ?? 0;
       debugPrint('[UpdateCheck] GitHub API status: $status');
       if (status < 200 || status >= 300) {
-        debugPrint('[UpdateCheck] Non-2xx status, returning null');
-        return null;
+        throw StateError('GitHub API returned HTTP $status');
       }
       final data = response.data;
       if (data == null) {
@@ -75,7 +84,8 @@ class AppUpdateService {
       }
       debugPrint('[UpdateCheck] Remote tag: $rawTag');
       final remoteVersion = normalizeVersionName(rawTag);
-      debugPrint('[UpdateCheck] Remote version: $remoteVersion, Current: $currentVersionName');
+      debugPrint(
+          '[UpdateCheck] Remote version: $remoteVersion, Current: $currentVersionName');
       if (!isRemoteVersionNewer(remoteVersion, currentVersionName)) {
         debugPrint('[UpdateCheck] Remote version not newer');
         return null;
@@ -94,7 +104,8 @@ class AppUpdateService {
         debugPrint('[UpdateCheck] APK url or name invalid');
         return null;
       }
-      debugPrint('[UpdateCheck] Update found! version=$remoteVersion url=$apkUrl');
+      debugPrint(
+          '[UpdateCheck] Update found! version=$remoteVersion url=$apkUrl');
       return AppUpdateInfo(
         versionName: remoteVersion,
         releaseUrl: release['html_url']?.toString() ??
@@ -107,7 +118,7 @@ class AppUpdateService {
     } catch (e, stack) {
       debugPrint('[UpdateCheck] Exception: $e');
       debugPrint('[UpdateCheck] Stack: $stack');
-      return null;
+      rethrow;
     }
   }
 
@@ -126,19 +137,28 @@ class AppUpdateService {
       '${baseDirectory.path}${Platform.pathSeparator}${_safeFileName(update.apkName)}',
     );
 
-    // Use a fresh Dio instance without API-specific headers for binary download
-    final downloadDio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(minutes: 5),
-      headers: const {'User-Agent': 'StudyAssistant/1.0'},
-    ));
-
     try {
-      await downloadDio.download(
+      var lastReceivedBytes = 0;
+      var lastTotalBytes = -1;
+      await _downloadDio.download(
         update.apkDownloadUrl,
         file.path,
-        onReceiveProgress: onProgress,
+        onReceiveProgress: (receivedBytes, totalBytes) {
+          lastReceivedBytes = receivedBytes;
+          lastTotalBytes = totalBytes;
+          onProgress?.call(
+            receivedBytes,
+            totalBytes > 0 ? totalBytes : update.apkSize ?? totalBytes,
+          );
+        },
       );
+      if (onProgress != null && lastTotalBytes <= 0) {
+        final fileSize = await file.length();
+        onProgress(
+          lastReceivedBytes > 0 ? lastReceivedBytes : fileSize,
+          update.apkSize ?? fileSize,
+        );
+      }
       return file;
     } catch (e) {
       if (file.existsSync()) {

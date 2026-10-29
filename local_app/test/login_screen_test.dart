@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_assistant_mobile/src/local/chaoxing_local_client.dart';
 import 'package:study_assistant_mobile/src/local/shuni_zuiling_local_client.dart';
@@ -181,9 +182,144 @@ void main() {
     expect(find.textContaining('登录失败'), findsOneWidget);
     expect(find.byIcon(Icons.info_outline), findsOneWidget);
   });
+
+  testWidgets('failed add-platform login stays on the form', (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final store = AssignmentStore(
+      sessionStore: _ExistingShuniSessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      chaoxingClient: _FailingChaoxingClient(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+    final router = GoRouter(
+      initialLocation: '/login',
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (_, __) => LoginScreen(
+            store: store,
+            addPlatformMode: true,
+          ),
+        ),
+        GoRoute(
+          path: '/assignments',
+          builder: (_, __) => const Scaffold(body: Text('作业页')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.enterText(find.byType(TextField).at(0), 'student');
+    await tester.enterText(find.byType(TextField).at(1), 'bad-password');
+    await tester.pump();
+    await tester.tap(find.text('登录学习通'));
+    await tester.pumpAndSettle();
+
+    expect(store.error, contains('登录失败'));
+    expect(find.textContaining('登录失败'), findsOneWidget);
+    expect(find.text('添加平台账号'), findsOneWidget);
+    expect(find.text('作业页'), findsNothing);
+  });
+
+  testWidgets('successful login to an already bound platform returns home',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_sync_interval_minutes': 0});
+    final store = AssignmentStore(
+      sessionStore: _ExistingChaoxingSessionStore(),
+      notificationService: _NoopNotificationService(),
+      widgetSnapshotService: _NoopWidgetSnapshotService(),
+      chaoxingClient: _SuccessfulChaoxingClient(),
+    );
+    addTearDown(store.dispose);
+    await store.restoreSession();
+    final router = GoRouter(
+      initialLocation: '/login',
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (_, __) => LoginScreen(store: store, addPlatformMode: true),
+        ),
+        GoRoute(
+          path: '/assignments',
+          builder: (_, __) => const Scaffold(body: Text('作业页')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.enterText(find.byType(TextField).at(0), 'student');
+    await tester.enterText(find.byType(TextField).at(1), 'new-password');
+    await tester.pump();
+    await tester.tap(find.text('登录学习通'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('作业页'), findsOneWidget);
+  });
 }
 
 class _MemorySessionStore extends SecureSessionStore {}
+
+class _ExistingShuniSessionStore extends SecureSessionStore {
+  @override
+  Future<String?> readChaoxingAccount() async => null;
+
+  @override
+  Future<String?> readChaoxingDisplayName() async => null;
+
+  @override
+  Future<String?> readChaoxingAvatarUrl() async => null;
+
+  @override
+  Future<String?> readShuniZuilingAccount() async => 'existing-student';
+
+  @override
+  Future<String?> readShuniZuilingSchoolCode() async => 'existing-school';
+}
+
+class _ExistingChaoxingSessionStore extends SecureSessionStore {
+  @override
+  Future<String?> readChaoxingAccount() async => 'student';
+
+  @override
+  Future<String?> readChaoxingDisplayName() async => '学生';
+
+  @override
+  Future<String?> readChaoxingAvatarUrl() async => 'https://example.com/a.png';
+
+  @override
+  Future<String?> readShuniZuilingAccount() async => null;
+
+  @override
+  Future<String?> readShuniZuilingSchoolCode() async => null;
+
+  @override
+  Future<void> saveChaoxingAccount({
+    required String account,
+    required String password,
+    String? displayName,
+    String? avatarUrl,
+  }) async {}
+}
+
+class _SuccessfulChaoxingClient extends ChaoxingLocalClient {
+  @override
+  Future<ChaoxingLoginResult> login({
+    required String account,
+    required String password,
+  }) async =>
+      const ChaoxingLoginResult(
+        success: true,
+        displayName: '学生',
+        avatarUrl: 'https://example.com/a.png',
+      );
+
+  @override
+  Future<List<Assignment>> fetchAssignments() async => [];
+}
 
 class _SchoolListShuniZuilingClient extends ShuniZuilingLocalClient {
   @override

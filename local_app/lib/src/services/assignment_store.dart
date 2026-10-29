@@ -54,6 +54,9 @@ class AssignmentStore extends ChangeNotifier {
   final List<ShuniZuilingSchool> _shuniZuilingSchools = [];
   Timer? _autoSyncTimer;
   bool _autoSyncRunning = false;
+  int _sessionGeneration = 0;
+  Future<void>? _syncOperation;
+  Future<void>? _syncFinalization;
 
   bool get isAuthenticated => _authenticated;
   bool get isLoading => _loading;
@@ -136,7 +139,7 @@ class AssignmentStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loginChaoxing({
+  Future<bool> loginChaoxing({
     required String account,
     required String password,
     required bool agreementAccepted,
@@ -144,8 +147,9 @@ class AssignmentStore extends ChangeNotifier {
     if (!agreementAccepted) {
       _error = '请先阅读并同意服务协议和隐私协议';
       notifyListeners();
-      return;
+      return false;
     }
+    var loginSucceeded = false;
     await _run(() async {
       final result = await chaoxingClient.login(
         account: account,
@@ -165,6 +169,7 @@ class AssignmentStore extends ChangeNotifier {
       _chaoxingAvatarUrl = result.avatarUrl;
       _agreementAccepted = true;
       _authenticated = true;
+      loginSucceeded = true;
       _restartAutoSyncTimer();
       try {
         await _syncAssignmentsBody();
@@ -172,9 +177,10 @@ class AssignmentStore extends ChangeNotifier {
         _error = _friendlyError(error);
       }
     });
+    return loginSucceeded;
   }
 
-  Future<void> loginShuniZuiling({
+  Future<bool> loginShuniZuiling({
     required String schoolUserLocalId,
     required String password,
     required String schoolCode,
@@ -183,8 +189,9 @@ class AssignmentStore extends ChangeNotifier {
     if (!agreementAccepted) {
       _error = '请先阅读并同意服务协议和隐私协议';
       notifyListeners();
-      return;
+      return false;
     }
+    var loginSucceeded = false;
     await _run(() async {
       final normalizedAccount = schoolUserLocalId.trim();
       final normalizedSchoolCode = schoolCode.trim();
@@ -205,6 +212,7 @@ class AssignmentStore extends ChangeNotifier {
       _shuniZuilingSchoolCode = normalizedSchoolCode;
       _agreementAccepted = true;
       _authenticated = true;
+      loginSucceeded = true;
       _restartAutoSyncTimer();
       try {
         await _syncAssignmentsBody();
@@ -212,6 +220,7 @@ class AssignmentStore extends ChangeNotifier {
         _error = _friendlyError(error);
       }
     });
+    return loginSucceeded;
   }
 
   Future<void> loadShuniZuilingSchools() async {
@@ -320,9 +329,7 @@ class AssignmentStore extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await sessionStore.clear();
-    await repository.clear();
-    await reminderRuleStore.clear();
+    _sessionGeneration += 1;
     _authenticated = false;
     _account = null;
     _chaoxingDisplayName = null;
@@ -332,7 +339,22 @@ class AssignmentStore extends ChangeNotifier {
     _error = null;
     _assignments.clear();
     _lastSyncAt = null;
+    _reminderOffsetsMinutes = ReminderRuleStore.defaultOffsetsMinutes;
     _restartAutoSyncTimer();
+
+    final syncFinalization = _syncFinalization;
+    if (syncFinalization != null) {
+      try {
+        await syncFinalization;
+      } catch (_) {}
+    }
+    await sessionStore.clear();
+    await repository.clear();
+    await reminderRuleStore.clear();
+    await notificationService.rescheduleAssignments(
+      const <Assignment>[],
+      offsetsMinutes: _reminderOffsetsMinutes,
+    );
     await widgetSnapshotService.saveSnapshot([]);
     notifyListeners();
   }
@@ -352,16 +374,51 @@ class AssignmentStore extends ChangeNotifier {
     await widgetSnapshotService.saveAssignments(_assignments);
   }
 
-  Future<void> _syncAssignmentsBody({bool refreshSession = true}) async {
+  Future<void> _syncAssignmentsBody({bool refreshSession = true}) {
+    final operationGeneration = _sessionGeneration;
+    late Future<void> operation;
+    operation = _performSyncAssignmentsBody(
+      refreshSession: refreshSession,
+    ).whenComplete(() async {
+      if (identical(_syncOperation, operation)) {
+        _syncOperation = null;
+      }
+      if (operationGeneration != _sessionGeneration && !_authenticated) {
+        await Future.wait<void>([
+          repository.clear(),
+          notificationService.rescheduleAssignments(
+            const <Assignment>[],
+            offsetsMinutes: _reminderOffsetsMinutes,
+          ),
+          widgetSnapshotService.saveSnapshot(const []),
+        ]);
+      }
+    });
+    _syncOperation = operation;
+    return operation;
+  }
+
+  Future<void> _performSyncAssignmentsBody({bool refreshSession = true}) async {
+    final sessionGeneration = _sessionGeneration;
     final incoming = <Assignment>[];
     final failedPrefixes = <String>{};
     final errors = <Object>[];
     final sources = <_AssignmentSyncSource>[];
+    var successfulSourceCount = 0;
     if (_account != null) {
+      final hasDisplayName = _chaoxingDisplayName?.trim().isNotEmpty ?? false;
+      final hasAvatarUrl = _chaoxingAvatarUrl?.trim().isNotEmpty ?? false;
+      if (refreshSession && (!hasDisplayName || !hasAvatarUrl)) {
+        try {
+          await _refreshChaoxingSession(sessionGeneration);
+        } catch (_) {
+          // Missing profile details should not block assignment sync.
+        }
+      }
       sources.add(
         _AssignmentSyncSource(
           prefix: 'cx:',
-          refresh: _refreshChaoxingSession,
+          refresh: () => _refreshChaoxingSession(sessionGeneration),
           fetch: chaoxingClient.fetchAssignments,
         ),
       );
@@ -371,7 +428,7 @@ class AssignmentStore extends ChangeNotifier {
       sources.add(
         _AssignmentSyncSource(
           prefix: 'snzl:',
-          refresh: _refreshShuniZuilingSession,
+          refresh: () => _refreshShuniZuilingSession(sessionGeneration),
           fetch: () => shuniZuilingClient.fetchAssignments(
             studentId: shuniStudentId,
           ),
@@ -382,6 +439,7 @@ class AssignmentStore extends ChangeNotifier {
       try {
         // Try fetching with existing session first (fast path)
         incoming.addAll(await source.fetch());
+        successfulSourceCount += 1;
       } catch (_) {
         // Fetch failed; refresh session and retry once
         try {
@@ -389,16 +447,20 @@ class AssignmentStore extends ChangeNotifier {
             await source.refresh();
           }
           incoming.addAll(await source.fetch());
+          successfulSourceCount += 1;
         } catch (error) {
           failedPrefixes.add(source.prefix);
           errors.add(error);
         }
       }
     }
-    if (incoming.isEmpty && errors.isNotEmpty) {
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
+    if (successfulSourceCount == 0 && errors.isNotEmpty) {
       throw errors.first;
     }
-    if (incoming.isEmpty) {
+    if (sources.isEmpty) {
       throw StateError('没有获取到作业。学习通或数你最灵当前可能没有未完成作业，或学校接口暂时不可用。');
     }
     final mergeInput = <Assignment>[
@@ -408,18 +470,51 @@ class AssignmentStore extends ChangeNotifier {
           (assignment) => failedPrefixes.any(assignment.id.startsWith),
         ),
     ];
+    final finalization = _finalizeAssignmentSync(
+      sessionGeneration: sessionGeneration,
+      mergeInput: mergeInput,
+      errors: errors,
+    );
+    _syncFinalization = finalization;
+    try {
+      await finalization;
+    } finally {
+      if (identical(_syncFinalization, finalization)) {
+        _syncFinalization = null;
+      }
+    }
+  }
+
+  Future<void> _finalizeAssignmentSync({
+    required int sessionGeneration,
+    required List<Assignment> mergeInput,
+    required List<Object> errors,
+  }) async {
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
     final merged = await repository.mergeAndSave(mergeInput);
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
+    final lastSyncAt = await repository.lastSyncAt();
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
     _assignments
       ..clear()
       ..addAll(merged);
-    _lastSyncAt = await repository.lastSyncAt();
+    _lastSyncAt = lastSyncAt;
     await _afterAssignmentsChanged();
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
     if (errors.isNotEmpty) {
       _error = '部分平台同步失败，已保留未同步平台的旧作业。';
     }
   }
 
-  Future<void> _refreshChaoxingSession() async {
+  Future<void> _refreshChaoxingSession(int sessionGeneration) async {
     final account = _account ?? await sessionStore.readChaoxingAccount();
     final password = await sessionStore.readChaoxingPassword();
     if (account == null ||
@@ -435,6 +530,9 @@ class AssignmentStore extends ChangeNotifier {
     if (!result.success) {
       throw StateError(result.message ?? '登录失败');
     }
+    if (sessionGeneration != _sessionGeneration) {
+      return;
+    }
     _account = account;
     if (result.displayName != null || result.avatarUrl != null) {
       final displayName = result.displayName ??
@@ -449,12 +547,16 @@ class AssignmentStore extends ChangeNotifier {
         displayName: displayName,
         avatarUrl: avatarUrl,
       );
+      if (sessionGeneration != _sessionGeneration) {
+        await sessionStore.clear();
+        return;
+      }
       _chaoxingDisplayName = displayName;
       _chaoxingAvatarUrl = avatarUrl;
     }
   }
 
-  Future<void> _refreshShuniZuilingSession() async {
+  Future<void> _refreshShuniZuilingSession(int sessionGeneration) async {
     final account =
         _shuniZuilingAccount ?? await sessionStore.readShuniZuilingAccount();
     final password = await sessionStore.readShuniZuilingPassword();
@@ -475,6 +577,9 @@ class AssignmentStore extends ChangeNotifier {
     );
     if (!result.success) {
       throw StateError(result.message ?? '数你最灵登录失败');
+    }
+    if (sessionGeneration != _sessionGeneration) {
+      return;
     }
   }
 
