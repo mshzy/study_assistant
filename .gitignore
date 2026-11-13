@@ -14,8 +14,8 @@ local.properties
 build/
 coverage/
 ios/Pods/
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
 ios/Flutter/ephemeral/
 GeneratedPluginRegistrant.java
 *.iml
